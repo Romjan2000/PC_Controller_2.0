@@ -7,7 +7,7 @@
 $ErrorActionPreference = "Stop"
 
 # --- Configuration ---
-$REPO_URL = "https://github.com/YOUR_USERNAME/PC_Controller"
+$REPO_URL = "https://github.com/Romjan2000/PC_Controller_2.0"
 $INSTALL_DIR = "$env:USERPROFILE\PC_Controller"
 $CLOUDFLARED_URL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
 
