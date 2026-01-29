@@ -316,8 +316,82 @@ def media_control():
     act = request.json.get('action')
     if act == 'playpause': pyautogui.press('playpause')
     elif act == 'next': pyautogui.press('nexttrack')
+    elif act == 'prev': pyautogui.press('prevtrack')
     elif act == 'lock_mouse': mouse_locked = not mouse_locked
     return jsonify({'status': 'ok'})
+
+# --- NEW: Volume Control ---
+@app.route('/api/volume', methods=['POST'])
+def volume_control():
+    act = request.json.get('action')
+    if act == 'up': pyautogui.press('volumeup')
+    elif act == 'down': pyautogui.press('volumedown')
+    elif act == 'mute': pyautogui.press('volumemute')
+    return jsonify({'status': 'ok'})
+
+# --- NEW: Power Actions ---
+@app.route('/api/power', methods=['POST'])
+def power_control():
+    act = request.json.get('action')
+    if verify_password(request.json.get('password', '')):
+        if act == 'sleep': 
+            os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+        elif act == 'lock': 
+            os.system("rundll32.exe user32.dll,LockWorkStation")
+        elif act == 'logoff':
+            os.system("shutdown /l")
+        return jsonify({'status': 'success'})
+    # Lock doesn't need password
+    if act == 'lock':
+        os.system("rundll32.exe user32.dll,LockWorkStation")
+        return jsonify({'status': 'success'})
+    return jsonify({'status': 'wrong password'})
+
+# --- NEW: Keyboard Shortcuts ---
+@app.route('/api/hotkey', methods=['POST'])
+def keyboard_hotkey():
+    act = request.json.get('action')
+    if act == 'alt_tab': pyautogui.hotkey('alt', 'tab')
+    elif act == 'win_d': pyautogui.hotkey('win', 'd')  # Show desktop
+    elif act == 'alt_f4': pyautogui.hotkey('alt', 'F4')  # Close window
+    elif act == 'win_l': pyautogui.hotkey('win', 'l')  # Lock
+    elif act == 'win_e': pyautogui.hotkey('win', 'e')  # File explorer
+    elif act == 'ctrl_shift_esc': pyautogui.hotkey('ctrl', 'shift', 'esc')  # Task manager
+    elif act == 'print_screen': pyautogui.press('printscreen')
+    elif act == 'escape': pyautogui.press('escape')
+    elif act == 'enter': pyautogui.press('enter')
+    elif act == 'backspace': pyautogui.press('backspace')
+    elif act == 'space': pyautogui.press('space')
+    return jsonify({'status': 'ok'})
+
+# --- NEW: System Information ---
+@app.route('/api/sysinfo')
+def system_info():
+    try:
+        cpu_count = psutil.cpu_count()
+        cpu_freq = psutil.cpu_freq()
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        boot_time = time.time() - psutil.boot_time()
+        
+        # Convert uptime to readable format
+        days = int(boot_time // 86400)
+        hours = int((boot_time % 86400) // 3600)
+        minutes = int((boot_time % 3600) // 60)
+        uptime_str = f"{days}d {hours}h {minutes}m"
+        
+        return jsonify({
+            'cpu_cores': cpu_count,
+            'cpu_freq_mhz': round(cpu_freq.current) if cpu_freq else 0,
+            'ram_total_gb': round(mem.total / (1024**3), 1),
+            'ram_used_gb': round(mem.used / (1024**3), 1),
+            'disk_total_gb': round(disk.total / (1024**3), 1),
+            'disk_used_gb': round(disk.used / (1024**3), 1),
+            'uptime': uptime_str,
+            'version': APP_VERSION
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 # --- PREMIUM UI HTML ---
 # NOTE: The 'f' before """ allows us to use {UI_PASSWORD} inside the HTML
@@ -492,6 +566,10 @@ HTML_UI = f"""
                 <button class="btn btn-ghost" onclick="doAction('restart')">↻ Reboot</button>
                 <button class="btn btn-danger" onclick="doAction('shutdown')">⏻ Shutdown</button>
             </div>
+            <div class="grid-2" style="margin-top:10px">
+                <button class="btn btn-ghost" onclick="post('/api/power', {action:'lock'})">🔒 Lock PC</button>
+                <button class="btn btn-ghost" onclick="doPower('sleep')">😴 Sleep</button>
+            </div>
             <div style="margin-top: 15px; padding-top:15px; border-top:1px solid var(--border)">
                 <input type="text" id="cmd-input" placeholder="CMD Command (e.g., calc)" style="margin-bottom:10px">
                 <button class="btn btn-ghost" onclick="runCmd()" style="height: 50px;">▶ Run Command</button>
@@ -513,19 +591,39 @@ HTML_UI = f"""
         </div>
 
         <div class="card">
-            <div class="card-header"><span class="card-title">Keyboard & Media</span></div>
+            <div class="card-header"><span class="card-title">Media & Volume</span></div>
             <input type="text" id="ghost" placeholder="Type here to ghost type..." style="margin-bottom:10px">
-            <button class="btn btn-primary" onclick="post('/api/ghost_type', {{text:document.getElementById('ghost').value}})">Inject Text</button>
+            <button class="btn btn-primary" onclick="post('/api/ghost_type', {text:document.getElementById('ghost').value})">Inject Text</button>
             
             <div style="height:20px"></div>
             <input type="text" id="tts-input" placeholder="Text to speak..." style="margin-bottom:10px">
-            <button class="btn btn-ghost" onclick="post('/api/speak', {{text:document.getElementById('tts-input').value}})">🔊 Speak Text</button>
+            <button class="btn btn-ghost" onclick="post('/api/speak', {text:document.getElementById('tts-input').value})">🔊 Speak Text</button>
             
             <div style="height:20px"></div>
-            <div class="grid-2">
-                <button class="btn btn-ghost" onclick="post('/api/media', {{action:'playpause'}})">⏯ Play/Pause</button>
-                <button class="btn btn-ghost" onclick="post('/api/media', {{action:'next'}})">⏭ Next Track</button>
+            <div class="card-title" style="margin-bottom:10px">MEDIA CONTROLS</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                <button class="btn btn-ghost" onclick="post('/api/media', {action:'prev'})">⏮</button>
+                <button class="btn btn-primary" onclick="post('/api/media', {action:'playpause'})">⏯</button>
+                <button class="btn btn-ghost" onclick="post('/api/media', {action:'next'})">⏭</button>
             </div>
+            
+            <div style="height:15px"></div>
+            <div class="card-title" style="margin-bottom:10px">VOLUME</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                <button class="btn btn-ghost" onclick="post('/api/volume', {action:'down'})">🔉 -</button>
+                <button class="btn btn-danger" onclick="post('/api/volume', {action:'mute'})">🔇</button>
+                <button class="btn btn-ghost" onclick="post('/api/volume', {action:'up'})">🔊 +</button>
+            </div>
+            
+            <div style="height:20px"></div>
+            <div class="card-title" style="margin-bottom:10px">HOTKEYS</div>
+            <div class="grid-2">
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'alt_tab'})">Alt+Tab</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'win_d'})">Show Desktop</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'alt_f4'})">Close Window</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'escape'})">Escape</button>
+            </div>
+            
             <div style="height:15px"></div>
             <input type="text" id="url-input" placeholder="https://google.com" style="margin-bottom:5px">
             <button class="btn btn-ghost" onclick="openUrl()">🌐 Open Website</button>
@@ -605,11 +703,62 @@ HTML_UI = f"""
     </div>
 </div>
 
+    <!-- SETTINGS TAB -->
+    <div id="settings" class="tab-content">
+        <div class="card">
+            <div class="card-header"><span class="card-title">System Info</span></div>
+            <div id="sysinfo-container" style="font-family:monospace; font-size:13px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                    <div style="background:rgba(139,92,246,0.1); padding:15px; border-radius:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:bold; color:var(--primary);" id="sys-cpu-cores">-</div>
+                        <div style="font-size:11px; color:var(--text-muted);">CPU CORES</div>
+                    </div>
+                    <div style="background:rgba(6,182,212,0.1); padding:15px; border-radius:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:bold; color:var(--accent);" id="sys-ram">-</div>
+                        <div style="font-size:11px; color:var(--text-muted);">RAM (GB)</div>
+                    </div>
+                    <div style="background:rgba(244,63,94,0.1); padding:15px; border-radius:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:bold; color:var(--danger);" id="sys-disk">-</div>
+                        <div style="font-size:11px; color:var(--text-muted);">DISK (GB)</div>
+                    </div>
+                    <div style="background:rgba(34,197,94,0.1); padding:15px; border-radius:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:bold; color:#22c55e;" id="sys-uptime">-</div>
+                        <div style="font-size:11px; color:var(--text-muted);">UPTIME</div>
+                    </div>
+                </div>
+                <button class="btn btn-ghost" onclick="loadSysInfo()">🔄 Refresh</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header"><span class="card-title">Quick Actions</span></div>
+            <div class="grid-2">
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'win_e'})">📁 File Explorer</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'ctrl_shift_esc'})">📊 Task Manager</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'print_screen'})">📸 Print Screen</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'win_l'})">🔐 Lock Screen</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header"><span class="card-title">About</span></div>
+            <div style="text-align:center; padding:10px;">
+                <div style="font-size:40px; margin-bottom:10px;">🖥️</div>
+                <div style="font-size:18px; font-weight:bold; margin-bottom:5px;">PC Controller 2.0</div>
+                <div style="font-size:13px; color:var(--text-muted);" id="app-version">v{APP_VERSION}</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:10px;">Auto-updates every 5 minutes</div>
+            </div>
+            <button class="btn btn-primary" onclick="checkForUpdate()" style="margin-top:15px;">🔄 Check for Updates</button>
+        </div>
+    </div>
+</div>
+
 <nav class="bottom-nav">
     <button class="nav-item active" onclick="sw('dash', this, 'Dashboard')">📊 <span>Home</span></button>
     <button class="nav-item" onclick="sw('input', this, 'Input')">🖱️ <span>Input</span></button>
     <button class="nav-item" onclick="sw('prank', this, 'Pranks')">🎭 <span>Pranks</span></button>
     <button class="nav-item" onclick="sw('files', this, 'Files')">📂 <span>Files</span></button>
+    <button class="nav-item" onclick="sw('settings', this, 'Settings'); loadSysInfo();">⚙️ <span>Settings</span></button>
 </nav>
 
 <script>
@@ -776,6 +925,42 @@ function runCmd() {{
 }}
 function openUrl() {{ var url = document.getElementById('url-input').value; if(url) post('/api/open_url', {{url:url}}); }}
 function toggleLock() {{ post('/api/media', {{action:'lock_mouse'}}); }}
+
+// --- NEW: System Info ---
+function loadSysInfo() {{
+    fetch('/api/sysinfo').then(r=>r.json()).then(d=>{{
+        if(d.error) return;
+        document.getElementById('sys-cpu-cores').innerText = d.cpu_cores;
+        document.getElementById('sys-ram').innerText = d.ram_used_gb + '/' + d.ram_total_gb;
+        document.getElementById('sys-disk').innerText = d.disk_used_gb + '/' + d.disk_total_gb;
+        document.getElementById('sys-uptime').innerText = d.uptime;
+    }});
+}}
+
+// --- NEW: Check for Updates ---
+function checkForUpdate() {{
+    var btn = event.target;
+    btn.innerText = 'Checking...';
+    fetch('/api/check_update', {{method:'POST'}}).then(r=>r.json()).then(d=>{{
+        if(d.updated) {{
+            btn.innerText = '✅ Updated!';
+            alert('Update downloaded! Please restart PC Controller.');
+        }} else {{
+            btn.innerText = '✅ Up to date!';
+        }}
+        setTimeout(()=>{{ btn.innerText = '🔄 Check for Updates'; }}, 3000);
+    }}).catch(()=>{{
+        btn.innerText = '❌ Error';
+        setTimeout(()=>{{ btn.innerText = '🔄 Check for Updates'; }}, 3000);
+    }});
+}}
+
+// --- NEW: Power Actions with Password ---
+function doPower(act) {{
+    var p = prompt("Enter Admin Password");
+    if(p) post('/api/power', {{action:act, password:p}});
+}}
+
 var sx, sy; var pad = document.getElementById('pad'); 
 pad.addEventListener('touchstart', function(e){{ sx = e.touches[0].clientX; sy = e.touches[0].clientY; }}); 
 pad.addEventListener('touchmove', function(e){{ e.preventDefault(); var dx = (e.touches[0].clientX - sx) * 2.0; var dy = (e.touches[0].clientY - sy) * 2.0; post('/api/mouse_rel', {{x:dx, y:dy}}); sx = e.touches[0].clientX; sy = e.touches[0].clientY; }});

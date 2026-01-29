@@ -1,7 +1,7 @@
 # ============================================================
-#  PC Controller - One-Line Installer
+#  PC Controller 2.0 - One-Line Installer
 #  Run this command in PowerShell:
-#  irm https://raw.githubusercontent.com/YOUR_USERNAME/PC_Controller/main/install.ps1 | iex
+#  irm https://raw.githubusercontent.com/Romjan2000/PC_Controller_2.0/main/install.ps1 | iex
 # ============================================================
 
 $ErrorActionPreference = "Stop"
@@ -55,11 +55,13 @@ try {
         $minor = [int]$Matches[2]
         if ($major -ge 3 -and $minor -ge 8) {
             Write-Success "Python $major.$minor found"
-        } else {
+        }
+        else {
             throw "Python 3.8+ required, found $major.$minor"
         }
     }
-} catch {
+}
+catch {
     Write-Error "Python 3.8+ is required but not found!"
     Write-Color ""
     Write-Color "  Please install Python from: https://python.org/downloads" "Cyan"
@@ -105,7 +107,8 @@ try {
     Remove-Item $extractPath -Recurse -Force
     
     Write-Success "Downloaded successfully"
-} catch {
+}
+catch {
     Write-Error "Failed to download: $_"
     exit 1
 }
@@ -126,7 +129,8 @@ Write-Step "6/7" "Downloading Cloudflare Tunnel..."
 try {
     Invoke-WebRequest -Uri $CLOUDFLARED_URL -OutFile "$INSTALL_DIR\cloudflared.exe" -UseBasicParsing
     Write-Success "Cloudflared downloaded"
-} catch {
+}
+catch {
     Write-Info "Could not download cloudflared (optional for remote access)"
 }
 
@@ -200,7 +204,7 @@ MAX_UPLOAD_SIZE_MB=1024
 # --- AUTO UPDATE ---
 AUTO_UPDATE=true
 UPDATE_CHECK_INTERVAL=300
-GITHUB_REPO=YOUR_USERNAME/PC_Controller
+GITHUB_REPO=Romjan2000/PC_Controller_2.0
 "@
 
 $envContent | Out-File -FilePath "$INSTALL_DIR\.env" -Encoding UTF8

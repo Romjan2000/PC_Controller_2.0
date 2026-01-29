@@ -63,8 +63,8 @@ To receive the access URL on your phone:
 
 ### 1. Download & Extract
 ```bash
-git clone https://github.com/YOUR_USERNAME/PC_Controller.git
-cd PC_Controller
+git clone https://github.com/Romjan2000/PC_Controller_2.0.git
+cd PC_Controller_2.0
 ```
 
 ### 2. Run Setup
