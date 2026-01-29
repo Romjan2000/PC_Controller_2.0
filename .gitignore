@@ -1,0 +1,28 @@
+# Sensitive files
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Tunnel executables (users download themselves)
+ngrok.exe
+cloudflared.exe
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System
+Thumbs.db
+.DS_Store
+
+# Logs
+*.log

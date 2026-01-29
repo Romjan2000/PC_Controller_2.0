@@ -1,0 +1,9 @@
+flask
+psutil
+pyautogui
+pyttsx3
+pyperclip
+requests
+Pillow
+python-dotenv
+pywin32
