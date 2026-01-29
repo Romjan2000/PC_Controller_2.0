@@ -567,7 +567,7 @@ HTML_UI = f"""
                 <button class="btn btn-danger" onclick="doAction('shutdown')">⏻ Shutdown</button>
             </div>
             <div class="grid-2" style="margin-top:10px">
-                <button class="btn btn-ghost" onclick="post('/api/power', {action:'lock'})">🔒 Lock PC</button>
+                <button class="btn btn-ghost" onclick="post('/api/power', {{action:'lock'}})">🔒 Lock PC</button>
                 <button class="btn btn-ghost" onclick="doPower('sleep')">😴 Sleep</button>
             </div>
             <div style="margin-top: 15px; padding-top:15px; border-top:1px solid var(--border)">
@@ -593,35 +593,35 @@ HTML_UI = f"""
         <div class="card">
             <div class="card-header"><span class="card-title">Media & Volume</span></div>
             <input type="text" id="ghost" placeholder="Type here to ghost type..." style="margin-bottom:10px">
-            <button class="btn btn-primary" onclick="post('/api/ghost_type', {text:document.getElementById('ghost').value})">Inject Text</button>
+            <button class="btn btn-primary" onclick="post('/api/ghost_type', {{text:document.getElementById('ghost').value}})">Inject Text</button>
             
             <div style="height:20px"></div>
             <input type="text" id="tts-input" placeholder="Text to speak..." style="margin-bottom:10px">
-            <button class="btn btn-ghost" onclick="post('/api/speak', {text:document.getElementById('tts-input').value})">🔊 Speak Text</button>
+            <button class="btn btn-ghost" onclick="post('/api/speak', {{text:document.getElementById('tts-input').value}})">🔊 Speak Text</button>
             
             <div style="height:20px"></div>
             <div class="card-title" style="margin-bottom:10px">MEDIA CONTROLS</div>
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <button class="btn btn-ghost" onclick="post('/api/media', {action:'prev'})">⏮</button>
-                <button class="btn btn-primary" onclick="post('/api/media', {action:'playpause'})">⏯</button>
-                <button class="btn btn-ghost" onclick="post('/api/media', {action:'next'})">⏭</button>
+                <button class="btn btn-ghost" onclick="post('/api/media', {{action:'prev'}})">⏮</button>
+                <button class="btn btn-primary" onclick="post('/api/media', {{action:'playpause'}})">⏯</button>
+                <button class="btn btn-ghost" onclick="post('/api/media', {{action:'next'}})">⏭</button>
             </div>
             
             <div style="height:15px"></div>
             <div class="card-title" style="margin-bottom:10px">VOLUME</div>
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
-                <button class="btn btn-ghost" onclick="post('/api/volume', {action:'down'})">🔉 -</button>
-                <button class="btn btn-danger" onclick="post('/api/volume', {action:'mute'})">🔇</button>
-                <button class="btn btn-ghost" onclick="post('/api/volume', {action:'up'})">🔊 +</button>
+                <button class="btn btn-ghost" onclick="post('/api/volume', {{action:'down'}})">🔉 -</button>
+                <button class="btn btn-danger" onclick="post('/api/volume', {{action:'mute'}})">🔇</button>
+                <button class="btn btn-ghost" onclick="post('/api/volume', {{action:'up'}})">🔊 +</button>
             </div>
             
             <div style="height:20px"></div>
             <div class="card-title" style="margin-bottom:10px">HOTKEYS</div>
             <div class="grid-2">
-                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'alt_tab'})">Alt+Tab</button>
-                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'win_d'})">Show Desktop</button>
-                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'alt_f4'})">Close Window</button>
-                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'escape'})">Escape</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {{action:'alt_tab'}})">Alt+Tab</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {{action:'win_d'}})">Show Desktop</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {{action:'alt_f4'}})">Close Window</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {{action:'escape'}})">Escape</button>
             </div>
             
             <div style="height:15px"></div>
@@ -733,10 +733,10 @@ HTML_UI = f"""
         <div class="card">
             <div class="card-header"><span class="card-title">Quick Actions</span></div>
             <div class="grid-2">
-                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'win_e'})">📁 File Explorer</button>
-                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'ctrl_shift_esc'})">📊 Task Manager</button>
-                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'print_screen'})">📸 Print Screen</button>
-                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'win_l'})">🔐 Lock Screen</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {{action:'win_e'}})">📁 File Explorer</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {{action:'ctrl_shift_esc'}})">📊 Task Manager</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {{action:'print_screen'}})">📸 Print Screen</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {{action:'win_l'}})">🔐 Lock Screen</button>
             </div>
         </div>
         
