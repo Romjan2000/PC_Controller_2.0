@@ -1,4 +1,4 @@
-# 🖥️ PC Controller
+# 🖥️ PC Controller 2.0
 
 Control your Windows PC remotely from any device! Access your computer from your phone, tablet, or another computer via a sleek web interface.
 
@@ -11,7 +11,7 @@ Control your Windows PC remotely from any device! Access your computer from your
 Open **PowerShell** and run this single command:
 
 ```powershell
-irm https://raw.githubusercontent.com/YOUR_USERNAME/PC_Controller/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Romjan2000/PC_Controller_2.0/main/install.ps1 | iex
 ```
 
 This will automatically:
