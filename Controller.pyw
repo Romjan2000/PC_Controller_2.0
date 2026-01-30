@@ -18,6 +18,8 @@ from flask import Flask, render_template_string, request, jsonify, send_from_dir
 from PIL import Image
 from dotenv import load_dotenv
 
+# Base directory for file operations
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Auto-update system
 try:
     from updater import start_update_checker, manual_check, get_local_version
