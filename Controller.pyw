@@ -542,6 +542,46 @@ def system_info():
     except Exception as e:
         return jsonify({'error': str(e)})
 
+# --- NEW: Task Manager ---
+@app.route('/api/processes')
+def list_processes():
+    """List running processes with name, PID, and memory usage"""
+    try:
+        processes = []
+        for proc in psutil.process_iter(['pid', 'name', 'memory_info']):
+            try:
+                info = proc.info
+                mem_mb = info['memory_info'].rss / (1024 * 1024) if info['memory_info'] else 0
+                processes.append({
+                    'pid': info['pid'],
+                    'name': info['name'],
+                    'memory_mb': round(mem_mb, 1)
+                })
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        # Sort by memory usage (highest first)
+        processes.sort(key=lambda x: x['memory_mb'], reverse=True)
+        return jsonify({'status': 'ok', 'processes': processes[:50]})  # Top 50
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/kill_process', methods=['POST'])
+def kill_process():
+    """Kill a process by PID"""
+    try:
+        pid = request.json.get('pid')
+        if not pid:
+            return jsonify({'status': 'error', 'message': 'No PID provided'})
+        
+        proc = psutil.Process(int(pid))
+        proc.terminate()
+        return jsonify({'status': 'ok', 'killed': pid})
+    except psutil.NoSuchProcess:
+        return jsonify({'status': 'error', 'message': 'Process not found'})
+    except psutil.AccessDenied:
+        return jsonify({'status': 'error', 'message': 'Access denied - run as admin'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
 # --- NEW: Restart Controller ---
 @app.route('/api/restart', methods=['POST'])
@@ -559,6 +599,399 @@ def restart_controller():
         
         threading.Thread(target=delayed_shutdown).start()
         return jsonify({'status': 'restarting'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+# --- NEW: Scheduled Tasks ---
+scheduled_tasks = {}  # {id: {'action': action, 'time': scheduled_time, 'timer': timer_obj}}
+schedule_counter = 0
+
+@app.route('/api/schedule', methods=['POST'])
+def create_schedule():
+    """Schedule shutdown/restart/sleep at a specific time"""
+    global schedule_counter
+    try:
+        action = request.json.get('action')  # shutdown, restart, sleep
+        delay_seconds = request.json.get('delay')  # seconds from now
+        
+        if action not in ['shutdown', 'restart', 'sleep']:
+            return jsonify({'status': 'error', 'message': 'Invalid action'})
+        
+        def execute_scheduled():
+            if action == 'shutdown':
+                os.system('shutdown /s /t 0')
+            elif action == 'restart':
+                os.system('shutdown /r /t 0')
+            elif action == 'sleep':
+                os.system('rundll32.exe powrprof.dll,SetSuspendState 0,1,0')
+            # Remove from active schedules
+            if schedule_id in scheduled_tasks:
+                del scheduled_tasks[schedule_id]
+        
+        schedule_counter += 1
+        schedule_id = schedule_counter
+        timer = threading.Timer(int(delay_seconds), execute_scheduled)
+        timer.start()
+        
+        scheduled_tasks[schedule_id] = {
+            'id': schedule_id,
+            'action': action,
+            'delay': delay_seconds,
+            'created': time.time()
+        }
+        
+        return jsonify({'status': 'ok', 'schedule_id': schedule_id})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/schedules')
+def list_schedules():
+    """List active scheduled tasks"""
+    return jsonify({'status': 'ok', 'schedules': list(scheduled_tasks.values())})
+
+@app.route('/api/cancel_schedule', methods=['POST'])
+def cancel_schedule():
+    """Cancel a scheduled task"""
+    try:
+        schedule_id = request.json.get('id')
+        if schedule_id in scheduled_tasks:
+            del scheduled_tasks[schedule_id]
+            return jsonify({'status': 'ok', 'cancelled': schedule_id})
+        return jsonify({'status': 'error', 'message': 'Schedule not found'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+# --- NEW: Window Manager ---
+@app.route('/api/windows')
+def list_windows():
+    """List open windows"""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        
+        user32 = ctypes.windll.user32
+        windows = []
+        
+        def enum_callback(hwnd, _):
+            if user32.IsWindowVisible(hwnd):
+                length = user32.GetWindowTextLengthW(hwnd)
+                if length > 0:
+                    buff = ctypes.create_unicode_buffer(length + 1)
+                    user32.GetWindowTextW(hwnd, buff, length + 1)
+                    title = buff.value
+                    if title and len(title.strip()) > 0:
+                        windows.append({'hwnd': hwnd, 'title': title})
+            return True
+        
+        EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+        user32.EnumWindows(EnumWindowsProc(enum_callback), 0)
+        
+        return jsonify({'status': 'ok', 'windows': windows})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/focus_window', methods=['POST'])
+def focus_window():
+    """Bring window to front"""
+    try:
+        import ctypes
+        hwnd = request.json.get('hwnd')
+        ctypes.windll.user32.SetForegroundWindow(int(hwnd))
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/close_window', methods=['POST'])
+def close_window():
+    """Close a window"""
+    try:
+        import ctypes
+        hwnd = request.json.get('hwnd')
+        WM_CLOSE = 0x0010
+        ctypes.windll.user32.PostMessageW(int(hwnd), WM_CLOSE, 0, 0)
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/minimize_window', methods=['POST'])
+def minimize_window():
+    """Minimize a window"""
+    try:
+        import ctypes
+        hwnd = request.json.get('hwnd')
+        SW_MINIMIZE = 6
+        ctypes.windll.user32.ShowWindow(int(hwnd), SW_MINIMIZE)
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+# --- NEW: File Browser ---
+@app.route('/api/browse')
+def browse_files():
+    """List files in a directory"""
+    try:
+        path = request.args.get('path', os.path.expanduser('~'))
+        if not os.path.exists(path):
+            return jsonify({'status': 'error', 'message': 'Path not found'})
+        
+        items = []
+        for item in os.listdir(path):
+            item_path = os.path.join(path, item)
+            try:
+                is_dir = os.path.isdir(item_path)
+                size = 0 if is_dir else os.path.getsize(item_path)
+                items.append({
+                    'name': item,
+                    'path': item_path,
+                    'is_dir': is_dir,
+                    'size': size
+                })
+            except:
+                continue
+        
+        items.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
+        
+        return jsonify({
+            'status': 'ok',
+            'path': path,
+            'parent': os.path.dirname(path),
+            'items': items[:100]
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/open_file', methods=['POST'])
+def open_file():
+    """Open file with default application"""
+    try:
+        path = request.json.get('path')
+        os.startfile(path)
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/delete_file', methods=['POST'])
+def delete_file():
+    """Delete a file or folder"""
+    try:
+        path = request.json.get('path')
+        if os.path.isdir(path):
+            import shutil
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+# --- NEW: Live Screen Stream ---
+@app.route('/api/screen_stream')
+def screen_stream():
+    """MJPEG stream of the screen"""
+    fps = int(request.args.get('fps', 10))
+    quality = int(request.args.get('quality', 30))
+    
+    def generate():
+        while True:
+            try:
+                img = pyautogui.screenshot()
+                img = img.resize((img.width // 2, img.height // 2))
+                buffer = BytesIO()
+                img.save(buffer, format='JPEG', quality=quality)
+                frame = buffer.getvalue()
+                
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                
+                time.sleep(1.0 / fps)
+            except:
+                break
+    
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+# --- NEW: App Launcher ---
+APPS_CONFIG_FILE = os.path.join(BASE_DIR, 'apps.json')
+
+def load_apps():
+    """Load apps from config file"""
+    if os.path.exists(APPS_CONFIG_FILE):
+        with open(APPS_CONFIG_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return []
+
+def save_apps(apps):
+    """Save apps to config file"""
+    with open(APPS_CONFIG_FILE, 'w', encoding='utf-8') as f:
+        json.dump(apps, f, indent=2)
+
+@app.route('/api/apps')
+def list_apps():
+    """List configured apps"""
+    return jsonify({'status': 'ok', 'apps': load_apps()})
+
+@app.route('/api/launch_app', methods=['POST'])
+def launch_app():
+    """Launch an app by path"""
+    try:
+        path = request.json.get('path')
+        subprocess.Popen(path, shell=True)
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/add_app', methods=['POST'])
+def add_app():
+    """Add a new app to launcher"""
+    try:
+        name = request.json.get('name')
+        path = request.json.get('path')
+        icon = request.json.get('icon', '')  # Base64 or emoji
+        
+        apps = load_apps()
+        apps.append({'name': name, 'path': path, 'icon': icon})
+        save_apps(apps)
+        
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/remove_app', methods=['POST'])
+def remove_app():
+    """Remove an app from launcher"""
+    try:
+        path = request.json.get('path')
+        apps = load_apps()
+        apps = [a for a in apps if a['path'] != path]
+        save_apps(apps)
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+@app.route('/api/extract_icon', methods=['POST'])
+def extract_icon():
+    """Extract icon from .exe file"""
+    try:
+        path = request.json.get('path')
+        if not path.lower().endswith('.exe') or not os.path.exists(path):
+            return jsonify({'status': 'error', 'message': 'Invalid exe path'})
+        
+        # Try to extract icon using PIL and win32api
+        try:
+            from PIL import Image
+            import win32ui
+            import win32gui
+            import win32con
+            import win32api
+            
+            ico_x = win32api.GetSystemMetrics(win32con.SM_CXICON)
+            large, small = win32gui.ExtractIconEx(path, 0)
+            
+            if large:
+                hdc = win32ui.CreateDCFromHandle(win32gui.GetDC(0))
+                hbmp = win32ui.CreateBitmap()
+                hbmp.CreateCompatibleBitmap(hdc, ico_x, ico_x)
+                hdc2 = hdc.CreateCompatibleDC()
+                hdc2.SelectObject(hbmp)
+                hdc2.DrawIcon((0, 0), large[0])
+                
+                bmpinfo = hbmp.GetInfo()
+                bmpstr = hbmp.GetBitmapBits(True)
+                img = Image.frombuffer('RGBA', (bmpinfo['bmWidth'], bmpinfo['bmHeight']), bmpstr, 'raw', 'BGRA', 0, 1)
+                
+                buffer = BytesIO()
+                img.save(buffer, format='PNG')
+                icon_b64 = base64.b64encode(buffer.getvalue()).decode()
+                
+                win32gui.DestroyIcon(large[0])
+                if small:
+                    win32gui.DestroyIcon(small[0])
+                
+                return jsonify({'status': 'ok', 'icon': f'data:image/png;base64,{icon_b64}'})
+        except:
+            pass
+        
+        return jsonify({'status': 'error', 'message': 'Could not extract icon'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+# --- NEW: Voice Commands ---
+@app.route('/api/voice_command', methods=['POST'])
+def voice_command():
+    """Execute a voice command"""
+    try:
+        command = request.json.get('command', '').lower()
+        
+        # Common app names mapping
+        app_commands = {
+            'chrome': 'start chrome', 'ক্রোম': 'start chrome',
+            'notepad': 'notepad', 'নোটপ্যাড': 'notepad',
+            'calculator': 'calc', 'ক্যালকুলেটর': 'calc',
+            'explorer': 'explorer', 'এক্সপ্লোরার': 'explorer',
+            'discord': 'start discord', 'ডিসকর্ড': 'start discord',
+            'spotify': 'start spotify', 'স্পটিফাই': 'start spotify',
+            'browser': 'start chrome', 'ব্রাউজার': 'start chrome',
+            'task manager': 'taskmgr', 'টাস্ক ম্যানেজার': 'taskmgr',
+            'settings': 'start ms-settings:', 'সেটিংস': 'start ms-settings:',
+        }
+        
+        # Volume commands
+        if any(w in command for w in ['volume up', 'ভলিউম আপ', 'আওয়াজ বাড়াও']):
+            pyautogui.press('volumeup')
+            pyautogui.press('volumeup')
+            pyautogui.press('volumeup')
+            return jsonify({'status': 'ok', 'action': 'volume_up'})
+        
+        if any(w in command for w in ['volume down', 'ভলিউম ডাউন', 'আওয়াজ কমাও']):
+            pyautogui.press('volumedown')
+            pyautogui.press('volumedown')
+            pyautogui.press('volumedown')
+            return jsonify({'status': 'ok', 'action': 'volume_down'})
+        
+        if any(w in command for w in ['mute', 'মিউট']):
+            pyautogui.press('volumemute')
+            return jsonify({'status': 'ok', 'action': 'mute'})
+        
+        # Media commands
+        if any(w in command for w in ['play', 'pause', 'প্লে', 'পজ']):
+            pyautogui.press('playpause')
+            return jsonify({'status': 'ok', 'action': 'playpause'})
+        
+        if any(w in command for w in ['next', 'skip', 'নেক্সট', 'স্কিপ']):
+            pyautogui.press('nexttrack')
+            return jsonify({'status': 'ok', 'action': 'next'})
+        
+        if any(w in command for w in ['previous', 'back', 'আগের']):
+            pyautogui.press('prevtrack')
+            return jsonify({'status': 'ok', 'action': 'previous'})
+        
+        # App opening commands
+        for app_name, app_cmd in app_commands.items():
+            if app_name in command:
+                subprocess.Popen(app_cmd, shell=True)
+                return jsonify({'status': 'ok', 'action': f'opened_{app_name}'})
+        
+        # Open with "open" prefix
+        if command.startswith('open ') or command.startswith('ওপেন '):
+            app_name = command.replace('open ', '').replace('ওপেন ', '').strip()
+            subprocess.Popen(f'start {app_name}', shell=True)
+            return jsonify({'status': 'ok', 'action': f'opened_{app_name}'})
+        
+        # Shutdown/restart commands
+        if any(w in command for w in ['shutdown', 'শাটডাউন', 'বন্ধ করো']):
+            return jsonify({'status': 'confirm', 'action': 'shutdown', 'message': 'Confirm shutdown?'})
+        
+        if any(w in command for w in ['restart', 'রিস্টার্ট']):
+            return jsonify({'status': 'confirm', 'action': 'restart', 'message': 'Confirm restart?'})
+        
+        if any(w in command for w in ['sleep', 'ঘুমাও', 'স্লিপ']):
+            os.system('rundll32.exe powrprof.dll,SetSuspendState 0,1,0')
+            return jsonify({'status': 'ok', 'action': 'sleep'})
+        
+        if any(w in command for w in ['lock', 'লক']):
+            os.system('rundll32.exe user32.dll,LockWorkStation')
+            return jsonify({'status': 'ok', 'action': 'lock'})
+        
+        return jsonify({'status': 'unknown', 'message': 'Command not recognized'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
@@ -1155,6 +1588,98 @@ HTML_UI = f"""
             </div>
             <button class="btn btn-primary" onclick="checkForUpdate()" style="margin-top:15px;">🔄 Check for Updates</button>
         </div>
+        </div>
+    </div>
+    
+    <!-- APPS TAB (NEW v2.4.0) -->
+    <div id="apps" class="tab-content">
+        
+        <!-- Voice Command -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🎤 Voice Command</span></div>
+            <div style="text-align:center; padding:15px;">
+                <select id="voice-lang" style="width:100%; margin-bottom:15px;">
+                    <option value="en-US">🇺🇸 English</option>
+                    <option value="bn-BD">🇧🇩 বাংলা (Bangla)</option>
+                </select>
+                <button class="btn btn-primary" id="voice-btn" onclick="startVoice()" style="padding:25px; font-size:24px;">🎤</button>
+                <div id="voice-status" style="margin-top:15px; color:var(--text-muted); font-size:13px;">Tap mic and speak</div>
+                <div id="voice-result" style="margin-top:10px; color:var(--primary); font-weight:600;"></div>
+            </div>
+        </div>
+        
+        <!-- App Launcher -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🚀 App Launcher</span></div>
+            <div id="app-grid" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:15px;"></div>
+            <div style="border-top:1px solid var(--border); padding-top:15px; margin-top:10px;">
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Add New App</div>
+                <input type="text" id="app-name" placeholder="App Name" style="margin-bottom:8px;">
+                <input type="text" id="app-path" placeholder="Path (e.g. C:\\Program Files\\...\\app.exe)">
+                <button class="btn btn-ghost" onclick="addNewApp()">➕ Add App</button>
+            </div>
+        </div>
+        
+        <!-- Window Manager -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🪟 Window Manager</span>
+                <button class="btn btn-ghost" onclick="loadWindows()" style="padding:8px 12px; font-size:12px;">🔄</button>
+            </div>
+            <div id="window-list" style="max-height:300px; overflow-y:auto;"></div>
+        </div>
+        
+        <!-- Task Manager -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🔧 Task Manager</span>
+                <button class="btn btn-ghost" onclick="loadProcesses()" style="padding:8px 12px; font-size:12px;">🔄</button>
+            </div>
+            <div id="process-list" style="max-height:300px; overflow-y:auto;"></div>
+        </div>
+        
+        <!-- Scheduled Tasks -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">⏰ Schedule Action</span></div>
+            <select id="sched-action" style="margin-bottom:10px;">
+                <option value="shutdown">🔴 Shutdown</option>
+                <option value="restart">🔄 Restart</option>
+                <option value="sleep">💤 Sleep</option>
+            </select>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:15px;">
+                <button class="btn btn-ghost" onclick="scheduleIn(300)">5 min</button>
+                <button class="btn btn-ghost" onclick="scheduleIn(1800)">30 min</button>
+                <button class="btn btn-ghost" onclick="scheduleIn(3600)">1 hour</button>
+            </div>
+            <div id="active-schedules" style="font-size:12px; color:var(--text-muted);"></div>
+        </div>
+        
+        <!-- File Browser -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">📁 File Browser</span></div>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <button class="btn btn-ghost" onclick="browseParent()" style="padding:10px;">⬆️ Up</button>
+                <button class="btn btn-ghost" onclick="browseHome()" style="padding:10px; flex:1;">🏠 Home</button>
+            </div>
+            <div id="browse-path" style="font-size:11px; color:var(--text-muted); margin-bottom:10px; word-break:break-all;"></div>
+            <div id="browse-list" style="max-height:300px; overflow-y:auto;"></div>
+        </div>
+        
+        <!-- Live Screen Mirror -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">📺 Live Screen Mirror</span></div>
+            <select id="stream-fps" style="margin-bottom:10px;">
+                <option value="10">10 FPS (Low - Fast)</option>
+                <option value="15">15 FPS (Medium)</option>
+                <option value="30">30 FPS (High - Smooth)</option>
+            </select>
+            <button class="btn btn-primary" id="stream-btn" onclick="toggleScreenMirror()">▶️ Start Mirror</button>
+            <div id="mirror-container" style="display:none; margin-top:15px;">
+                <img id="mirror-img" style="width:100%; border-radius:12px; border:1px solid var(--border);">
+                <button class="btn btn-ghost" onclick="fullscreenMirror()" style="margin-top:10px;">🔲 Fullscreen</button>
+            </div>
+        </div>
+        
     </div>
 </div>
 
@@ -1163,6 +1688,7 @@ HTML_UI = f"""
     <button class="nav-item" onclick="sw('input', this, 'Input')">🖱️ <span>Input</span></button>
     <button class="nav-item" onclick="sw('prank', this, 'Pranks')">🎭 <span>Pranks</span></button>
     <button class="nav-item" onclick="sw('files', this, 'Files')">📂 <span>Files</span></button>
+    <button class="nav-item" onclick="sw('apps', this, 'Apps'); loadAppData();">🚀 <span>Apps</span></button>
     <button class="nav-item" onclick="sw('settings', this, 'Settings'); loadSysInfo();">⚙️ <span>Settings</span></button>
 </nav>
 
@@ -1553,6 +2079,231 @@ function restartController() {{
             document.getElementById('btn-restart').innerText = '🔄 Restart with New Version';
         }});
 }}
+
+// ============ V2.4.0 NEW FEATURES ============
+
+// --- Load App Data (called when Apps tab opens) ---
+function loadAppData() {{
+    loadApps();
+    loadWindows();
+    loadProcesses();
+    browseHome();
+}}
+
+// --- App Launcher ---
+function loadApps() {{
+    fetch('/api/apps').then(r=>r.json()).then(data => {{
+        var html = '';
+        if(data.apps && data.apps.length > 0) {{
+            data.apps.forEach(app => {{
+                var icon = app.icon || '📦';
+                if(app.icon && app.icon.startsWith('data:')) {{
+                    icon = '<img src="'+app.icon+'" style="width:32px;height:32px;border-radius:6px;">';
+                }}
+                html += '<div onclick="launchApp(\\''+app.path.replace(/\\\\/g,'\\\\\\\\')+'\\')\" style="text-align:center;padding:12px;background:rgba(255,255,255,0.03);border-radius:12px;cursor:pointer;border:1px solid var(--border);">';
+                html += '<div style="font-size:28px;">'+icon+'</div>';
+                html += '<div style="font-size:11px;color:var(--text-muted);margin-top:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+app.name+'</div>';
+                html += '</div>';
+            }});
+        }} else {{
+            html = '<div style="grid-column:1/-1;text-align:center;color:var(--text-muted);padding:20px;">No apps added yet</div>';
+        }}
+        document.getElementById('app-grid').innerHTML = html;
+    }});
+}}
+
+function launchApp(path) {{
+    post('/api/launch_app', {{path: path}});
+}}
+
+function addNewApp() {{
+    var name = document.getElementById('app-name').value;
+    var path = document.getElementById('app-path').value;
+    if(!name || !path) {{ alert('Enter app name and path'); return; }}
+    
+    fetch('/api/add_app', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{name:name, path:path}})}})
+        .then(r=>r.json())
+        .then(data => {{
+            document.getElementById('app-name').value = '';
+            document.getElementById('app-path').value = '';
+            loadApps();
+        }});
+}}
+
+// --- Window Manager ---
+function loadWindows() {{
+    document.getElementById('window-list').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Loading...</div>';
+    fetch('/api/windows').then(r=>r.json()).then(data => {{
+        var html = '';
+        if(data.windows && data.windows.length > 0) {{
+            data.windows.forEach(w => {{
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;margin-bottom:6px;border:1px solid var(--border);">';
+                html += '<div style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">'+w.title+'</div>';
+                html += '<div style="display:flex;gap:5px;">';
+                html += '<button onclick="focusWin('+w.hwnd+')" style="padding:5px 10px;background:var(--primary);color:white;border:none;border-radius:6px;font-size:10px;cursor:pointer;">Switch</button>';
+                html += '<button onclick="closeWin('+w.hwnd+')" style="padding:5px 10px;background:var(--danger);color:white;border:none;border-radius:6px;font-size:10px;cursor:pointer;">✕</button>';
+                html += '</div></div>';
+            }});
+        }} else {{
+            html = '<div style="text-align:center;color:var(--text-muted);padding:20px;">No windows found</div>';
+        }}
+        document.getElementById('window-list').innerHTML = html;
+    }});
+}}
+
+function focusWin(hwnd) {{ post('/api/focus_window', {{hwnd: hwnd}}); }}
+function closeWin(hwnd) {{ post('/api/close_window', {{hwnd: hwnd}}); loadWindows(); }}
+
+// --- Task Manager ---
+function loadProcesses() {{
+    document.getElementById('process-list').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Loading...</div>';
+    fetch('/api/processes').then(r=>r.json()).then(data => {{
+        var html = '';
+        if(data.processes && data.processes.length > 0) {{
+            data.processes.forEach(p => {{
+                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(255,255,255,0.02);border-radius:6px;margin-bottom:4px;font-size:11px;">';
+                html += '<div style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+p.name+'</div>';
+                html += '<div style="color:var(--text-muted);margin:0 10px;">'+p.memory_mb+' MB</div>';
+                html += '<button onclick="killProc('+p.pid+')" style="padding:4px 8px;background:var(--danger);color:white;border:none;border-radius:4px;font-size:10px;cursor:pointer;">Kill</button>';
+                html += '</div>';
+            }});
+        }}
+        document.getElementById('process-list').innerHTML = html;
+    }});
+}}
+
+function killProc(pid) {{
+    if(!confirm('Kill this process?')) return;
+    fetch('/api/kill_process', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{pid:pid}})}})
+        .then(r=>r.json()).then(data => {{ loadProcesses(); }});
+}}
+
+// --- Voice Commands ---
+var recognition = null;
+function startVoice() {{
+    if(!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {{
+        alert('Voice not supported in this browser');
+        return;
+    }}
+    
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = document.getElementById('voice-lang').value;
+    recognition.continuous = false;
+    
+    document.getElementById('voice-status').innerText = '🔴 Listening...';
+    document.getElementById('voice-btn').style.background = 'var(--danger)';
+    
+    recognition.onresult = function(event) {{
+        var cmd = event.results[0][0].transcript;
+        document.getElementById('voice-result').innerText = '"' + cmd + '"';
+        document.getElementById('voice-status').innerText = 'Processing...';
+        
+        fetch('/api/voice_command', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{command:cmd}})}})
+            .then(r=>r.json()).then(data => {{
+                if(data.status === 'ok') {{
+                    document.getElementById('voice-status').innerText = '✅ ' + (data.action || 'Done');
+                }} else if(data.status === 'confirm') {{
+                    if(confirm(data.message)) {{
+                        post('/api/action', {{action: data.action, password: prompt('Admin password:')}});
+                    }}
+                    document.getElementById('voice-status').innerText = 'Tap mic and speak';
+                }} else {{
+                    document.getElementById('voice-status').innerText = '❓ Command not recognized';
+                }}
+            }});
+    }};
+    
+    recognition.onerror = function(event) {{
+        document.getElementById('voice-status').innerText = '❌ Error: ' + event.error;
+        document.getElementById('voice-btn').style.background = '';
+    }};
+    
+    recognition.onend = function() {{
+        document.getElementById('voice-btn').style.background = '';
+    }};
+    
+    recognition.start();
+}}
+
+// --- Scheduled Tasks ---
+function scheduleIn(seconds) {{
+    var action = document.getElementById('sched-action').value;
+    fetch('/api/schedule', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{action:action, delay:seconds}})}})
+        .then(r=>r.json()).then(data => {{
+            if(data.status === 'ok') {{
+                document.getElementById('active-schedules').innerText = '⏰ '+action+' scheduled in ' + Math.floor(seconds/60) + ' minutes';
+            }}
+        }});
+}}
+
+// --- File Browser ---
+var currentBrowsePath = '';
+function browseHome() {{ browseTo(''); }}
+function browseParent() {{ 
+    if(currentBrowsePath) {{
+        var parent = currentBrowsePath.split(/[\\\\/]/).slice(0,-1).join('\\\\');
+        browseTo(parent || '');
+    }}
+}}
+
+function browseTo(path) {{
+    currentBrowsePath = path;
+    document.getElementById('browse-list').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Loading...</div>';
+    fetch('/api/browse?path=' + encodeURIComponent(path)).then(r=>r.json()).then(data => {{
+        if(data.status === 'error') {{
+            document.getElementById('browse-list').innerHTML = '<div style="color:var(--danger);padding:20px;">'+data.message+'</div>';
+            return;
+        }}
+        document.getElementById('browse-path').innerText = data.path;
+        currentBrowsePath = data.path;
+        
+        var html = '';
+        data.items.forEach(item => {{
+            var icon = item.is_dir ? '📁' : '📄';
+            html += '<div onclick="'+(item.is_dir ? "browseTo('"+item.path.replace(/\\\\/g,'\\\\\\\\')+"')" : "openBrowseFile('"+item.path.replace(/\\\\/g,'\\\\\\\\')+"')")+'" style="display:flex;align-items:center;gap:10px;padding:10px;background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:4px;cursor:pointer;border:1px solid var(--border);">';
+            html += '<span style="font-size:20px;">'+icon+'</span>';
+            html += '<span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+item.name+'</span>';
+            if(!item.is_dir) html += '<span style="font-size:10px;color:var(--text-muted);">'+(item.size/1024).toFixed(1)+' KB</span>';
+            html += '</div>';
+        }});
+        document.getElementById('browse-list').innerHTML = html || '<div style="text-align:center;color:var(--text-muted);padding:20px;">Empty folder</div>';
+    }});
+}}
+
+function openBrowseFile(path) {{
+    post('/api/open_file', {{path: path}});
+}}
+
+// --- Live Screen Mirror ---
+var mirrorActive = false;
+function toggleScreenMirror() {{
+    mirrorActive = !mirrorActive;
+    var btn = document.getElementById('stream-btn');
+    var container = document.getElementById('mirror-container');
+    var img = document.getElementById('mirror-img');
+    
+    if(mirrorActive) {{
+        var fps = document.getElementById('stream-fps').value;
+        img.src = '/api/screen_stream?fps=' + fps + '&quality=40';
+        container.style.display = 'block';
+        btn.innerText = '⏹️ Stop Mirror';
+        btn.style.background = 'var(--danger)';
+    }} else {{
+        img.src = '';
+        container.style.display = 'none';
+        btn.innerText = '▶️ Start Mirror';
+        btn.style.background = '';
+    }}
+}}
+
+function fullscreenMirror() {{
+    var img = document.getElementById('mirror-img');
+    if(img.requestFullscreen) img.requestFullscreen();
+    else if(img.webkitRequestFullscreen) img.webkitRequestFullscreen();
+}}
+
+// ============ END V2.4.0 ============
 
 function doAction(act) {{ 
     var p = prompt("Enter Admin Password"); 

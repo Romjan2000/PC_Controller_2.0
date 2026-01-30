@@ -262,4 +262,3 @@ if ($startNow -eq "y") {
 Write-Color ""
 Write-Color "  Press Enter to close this window..." "Gray"
 Read-Host
-
