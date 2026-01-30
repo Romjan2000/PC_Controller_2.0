@@ -21,7 +21,7 @@ function Write-Banner {
     Write-Color ""
     Write-Color "  ╔═══════════════════════════════════════════════════════════╗" "Cyan"
     Write-Color "  ║                                                           ║" "Cyan"
-    Write-Color "  ║            🖥️  PC CONTROLLER INSTALLER  🖥️               ║" "Cyan"
+    Write-Color "  ║                  PC CONTROLLER INSTALLER                  ║" "Cyan"
     Write-Color "  ║                                                           ║" "Cyan"
     Write-Color "  ╚═══════════════════════════════════════════════════════════╝" "Cyan"
     Write-Color ""
@@ -262,3 +262,4 @@ if ($startNow -eq "y") {
 Write-Color ""
 Write-Color "  Press Enter to close this window..." "Gray"
 Read-Host
+
