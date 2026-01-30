@@ -431,12 +431,33 @@ def open_url():
 def get_version():
     return jsonify({'version': APP_VERSION, 'updater_available': UPDATER_AVAILABLE})
 
-@app.route('/api/check_update', methods=['POST'])
+@app.route('/api/check_update')
 def check_update():
-    if UPDATER_AVAILABLE:
-        updated = manual_check()
-        return jsonify({'status': 'checked', 'updated': updated})
-    return jsonify({'status': 'updater_not_available'})
+    """Check if a newer version is available and download if found"""
+    try:
+        from updater import get_local_version, get_remote_version, compare_versions, get_config, download_and_apply_update
+        
+        config = get_config()
+        local_v = get_local_version()
+        remote_v = get_remote_version(config['github_repo'])
+        
+        if remote_v is None:
+            return jsonify({'status': 'error', 'message': 'Could not check remote version'})
+        
+        has_update = compare_versions(local_v, remote_v)
+        
+        if has_update:
+            # Download the update files
+            download_and_apply_update(config)
+            
+        return jsonify({
+            'status': 'ok',
+            'local_version': local_v,
+            'remote_version': remote_v,
+            'update_available': has_update
+        })
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
 @app.route('/api/media', methods=['POST'])
 def media_control():
@@ -520,6 +541,26 @@ def system_info():
         })
     except Exception as e:
         return jsonify({'error': str(e)})
+
+
+# --- NEW: Restart Controller ---
+@app.route('/api/restart', methods=['POST'])
+def restart_controller():
+    """Restart the PC Controller to apply updates"""
+    try:
+        # Start a new instance before killing current one
+        script_path = os.path.abspath(__file__)
+        subprocess.Popen([sys.executable, script_path], creationflags=0x00000008)
+        
+        # Schedule shutdown of current instance
+        def delayed_shutdown():
+            time.sleep(1)
+            os._exit(0)
+        
+        threading.Thread(target=delayed_shutdown).start()
+        return jsonify({'status': 'restarting'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
 # --- NEW: Input Blocking (Real Mouse/Keyboard Lock) ---
 @app.route('/api/input_block', methods=['POST'])
@@ -1065,6 +1106,35 @@ HTML_UI = f"""
             </div>
         </div>
         
+        <!-- Updates -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🔄 Updates</span></div>
+            <div style="display:flex; align-items:center; gap:12px; background:rgba(139,92,246,0.1); padding:12px 16px; border-radius:12px; margin-bottom:12px;">
+                <span style="font-size:24px;">📦</span>
+                <div style="flex:1;">
+                    <div style="font-size:13px; color:var(--text-main); font-weight:600;">Current Version</div>
+                    <div id="current-version" style="font-size:18px; color:var(--primary); font-weight:bold;">{APP_VERSION}</div>
+                </div>
+            </div>
+            <div id="update-status" style="display:none; background:rgba(34,197,94,0.1); padding:12px 16px; border-radius:12px; margin-bottom:12px; border:1px solid rgba(34,197,94,0.3);">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:20px;">✨</span>
+                    <div style="flex:1;">
+                        <div style="font-size:13px; color:#22c55e; font-weight:600;">New Version Available!</div>
+                        <div id="new-version" style="font-size:16px; color:white; font-weight:bold;"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="update-checking" style="display:none; text-align:center; padding:10px; color:var(--text-muted);">
+                <span style="display:inline-block; animation: spin 1s linear infinite;">⏳</span> Checking for updates...
+            </div>
+            <div id="update-uptodate" style="display:none; text-align:center; padding:10px; color:#22c55e;">
+                ✅ You're up to date!
+            </div>
+            <button class="btn btn-ghost" id="btn-check-update" onclick="checkForUpdates()" style="width:100%; margin-bottom:8px;">🔍 Check for Updates</button>
+            <button class="btn btn-primary" id="btn-restart" onclick="restartController()" style="width:100%; display:none;">🔄 Restart with New Version</button>
+        </div>
+        
         <div class="card">
             <div class="card-header"><span class="card-title">Quick Actions</span></div>
             <div class="grid-2">
@@ -1428,6 +1498,62 @@ function replaceMatrixImage() {{
     document.getElementById('chk-matrix-display').checked = false;
     document.getElementById('matrix-img-input').value = '';
 }}
+
+// Check for updates
+function checkForUpdates() {{
+    document.getElementById('btn-check-update').disabled = true;
+    document.getElementById('update-checking').style.display = 'block';
+    document.getElementById('update-status').style.display = 'none';
+    document.getElementById('update-uptodate').style.display = 'none';
+    document.getElementById('btn-restart').style.display = 'none';
+    
+    fetch('/api/check_update')
+        .then(r => r.json())
+        .then(data => {{
+            document.getElementById('update-checking').style.display = 'none';
+            document.getElementById('btn-check-update').disabled = false;
+            
+            if(data.status === 'error') {{
+                alert('Error checking for updates: ' + data.message);
+                return;
+            }}
+            
+            if(data.update_available) {{
+                document.getElementById('new-version').innerText = 'v' + data.remote_version;
+                document.getElementById('update-status').style.display = 'block';
+                document.getElementById('btn-restart').style.display = 'block';
+            }} else {{
+                document.getElementById('update-uptodate').style.display = 'block';
+            }}
+        }})
+        .catch(e => {{
+            document.getElementById('update-checking').style.display = 'none';
+            document.getElementById('btn-check-update').disabled = false;
+            alert('Failed to check for updates');
+        }});
+}}
+
+// Restart Controller with new version
+function restartController() {{
+    if(!confirm('Restart PC Controller now?')) return;
+    
+    document.getElementById('btn-restart').disabled = true;
+    document.getElementById('btn-restart').innerText = '⏳ Restarting...';
+    
+    fetch('/api/restart', {{method: 'POST', headers: {{'Content-Type': 'application/json'}}, body: JSON.stringify({{}})}})
+        .then(r => r.json())
+        .then(data => {{
+            if(data.status === 'restarting') {{
+                document.getElementById('btn-restart').innerText = '✅ Restarted! Refresh page...';
+                setTimeout(() => {{ location.reload(); }}, 3000);
+            }}
+        }})
+        .catch(e => {{
+            document.getElementById('btn-restart').disabled = false;
+            document.getElementById('btn-restart').innerText = '🔄 Restart with New Version';
+        }});
+}}
+
 function doAction(act) {{ 
     var p = prompt("Enter Admin Password"); 
     if(p) post('/api/action', {{action:act, password:p}}); 
