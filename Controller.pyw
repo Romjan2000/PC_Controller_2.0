@@ -26,6 +26,16 @@ except ImportError:
     UPDATER_AVAILABLE = False
     def get_local_version(): return 'unknown'
 
+# Input blocking (real mouse/keyboard lock)
+try:
+    from input_blocker import block_mouse, block_keyboard, get_status as get_block_status
+    INPUT_BLOCKER_AVAILABLE = True
+except ImportError:
+    INPUT_BLOCKER_AVAILABLE = False
+    def block_mouse(b=True): return False
+    def block_keyboard(b=True): return False
+    def get_block_status(): return {'mouse_blocked': False, 'keyboard_blocked': False}
+
 # --- LOAD CONFIGURATION ---
 load_dotenv()
 
@@ -61,6 +71,7 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_SIZE
 
 active_pranks = {} 
 mouse_locked = False
+matrix_display_proc = None  # Track Matrix display process
 
 # Load version
 APP_VERSION = get_local_version()
@@ -203,12 +214,58 @@ def ghost_type():
 @app.route('/api/speak', methods=['POST'])
 def speak():
     text_to_speak = request.json.get('text', '')
+    lang = request.json.get('lang', 'auto')  # 'en', 'bn', or 'auto'
+    
     def run_speech():
+        temp_path = None
         try:
-            engine = pyttsx3.init()
-            engine.say(text_to_speak)
-            engine.runAndWait()
-        except: pass
+            # Try using gTTS (Google Text-to-Speech) for natural voice
+            from gtts import gTTS
+            from playsound import playsound
+            import tempfile
+            
+            # Auto-detect language based on characters
+            if lang == 'auto':
+                # Check if text contains Bangla characters (Unicode range)
+                has_bangla = any('\u0980' <= c <= '\u09FF' for c in text_to_speak)
+                detected_lang = 'bn' if has_bangla else 'en'
+            else:
+                detected_lang = lang
+            
+            # Create speech
+            tts = gTTS(text=text_to_speak, lang=detected_lang, slow=False)
+            
+            # Save to temp file
+            temp_path = os.path.join(tempfile.gettempdir(), f'tts_{time.time()}.mp3')
+            tts.save(temp_path)
+            
+            # Play using playsound
+            playsound(temp_path)
+            
+        except ImportError:
+            # Fallback to pyttsx3 if gTTS not available
+            try:
+                engine = pyttsx3.init()
+                # Try to improve voice quality
+                voices = engine.getProperty('voices')
+                # Use a female voice if available (usually clearer)
+                for voice in voices:
+                    if 'female' in voice.name.lower() or 'zira' in voice.name.lower():
+                        engine.setProperty('voice', voice.id)
+                        break
+                engine.setProperty('rate', 150)  # Slightly slower for clarity
+                engine.say(text_to_speak)
+                engine.runAndWait()
+            except: pass
+        except Exception as e:
+            print(f"[TTS Error] {e}")
+        finally:
+            # Cleanup temp file
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except: pass
+    
     threading.Thread(target=run_speech).start()
     return jsonify({'status': 'speaking'})
 
@@ -226,13 +283,28 @@ def clipboard_send():
 def run_prank():
     data = request.json
     action, state, speed = data.get('action'), data.get('state'), data.get('speed', 'NORMAL')
-    script_map = {'hacker': 'hacker_prank.py', 'bsod': 'bsod_prank.py', 'matrix': 'matrix_rain.py'}
+    color = data.get('color', 'green')
+    length = data.get('length', 'medium')
     
+    # Map actions to script files
+    script_map = {
+        'hacker': 'hacker_prank.py', 
+        'bsod': 'bsod_prank.py', 
+        'matrix': 'matrix_rain.py',
+        'crazy_mouse': 'crazy_mouse.py',
+        'random_sounds': 'random_sounds.py'
+    }
+    
+    # Toggle-based pranks (on/off)
     if action in script_map:
         if state == 'on' and action not in active_pranks:
             script_path = get_script_path(script_map[action])
             if os.path.exists(script_path):
-                proc = subprocess.Popen([sys.executable, script_path, speed], creationflags=0x00000008, close_fds=True)
+                # Matrix rain gets extra arguments
+                if action == 'matrix':
+                    proc = subprocess.Popen([sys.executable, script_path, speed, color, length], creationflags=0x00000008, close_fds=True)
+                else:
+                    proc = subprocess.Popen([sys.executable, script_path, speed], creationflags=0x00000008, close_fds=True)
                 active_pranks[action] = proc
         elif state == 'off' and action in active_pranks:
             try:
@@ -244,6 +316,7 @@ def run_prank():
                 if action in active_pranks: del active_pranks[action]
         return jsonify({'status': 'toggled'})
     
+    # One-shot pranks
     if action == 'jiggle':
         def jiggle_loop():
             for _ in range(20):
@@ -253,6 +326,23 @@ def run_prank():
                 time.sleep(0.1)
         threading.Thread(target=jiggle_loop).start()
         return jsonify({'status': 'jiggling'})
+    
+    if action == 'cd_eject':
+        subprocess.Popen([sys.executable, get_script_path('cd_tray.py'), 'eject'], creationflags=0x00000008)
+        return jsonify({'status': 'ejected'})
+    
+    if action == 'cd_close':
+        subprocess.Popen([sys.executable, get_script_path('cd_tray.py'), 'close'], creationflags=0x00000008)
+        return jsonify({'status': 'closed'})
+    
+    if action == 'cd_disco':
+        subprocess.Popen([sys.executable, get_script_path('cd_tray.py'), 'disco', '5'], creationflags=0x00000008)
+        return jsonify({'status': 'disco'})
+    
+    if action == 'scary':
+        subprocess.Popen([sys.executable, get_script_path('scary_popup.py')], creationflags=0x00000008)
+        return jsonify({'status': 'scared'})
+    
     return jsonify({'status': 'unknown'})
 
 @app.route('/api/note_popup', methods=['POST'])
@@ -267,6 +357,44 @@ def upload_file():
         f.save(os.path.join(app.config['UPLOAD_FOLDER'], f.filename))
         return jsonify({'status': 'uploaded', 'filename': f.filename})
     return jsonify({'status': 'no file'})
+
+@app.route('/api/matrix_image', methods=['POST'])
+def matrix_image():
+    """Upload an image and display it as Matrix-style ASCII art"""
+    global matrix_display_proc
+    
+    if 'file' not in request.files or not request.files['file'].filename:
+        return jsonify({'status': 'no file'})
+    
+    # Close any existing matrix display
+    try:
+        if matrix_display_proc and matrix_display_proc.poll() is None:
+            matrix_display_proc.terminate()
+    except:
+        pass
+    
+    f = request.files['file']
+    # Save to temp location
+    import tempfile
+    temp_path = os.path.join(tempfile.gettempdir(), 'matrix_img_temp.png')
+    f.save(temp_path)
+    
+    # Run the matrix image script and track the process
+    matrix_display_proc = subprocess.Popen([sys.executable, get_script_path('matrix_image.py'), temp_path], creationflags=0x00000008)
+    return jsonify({'status': 'displaying'})
+
+@app.route('/api/matrix_close', methods=['POST'])
+def matrix_close():
+    """Close the Matrix display"""
+    global matrix_display_proc
+    try:
+        if matrix_display_proc and matrix_display_proc.poll() is None:
+            matrix_display_proc.terminate()
+            matrix_display_proc = None
+            return jsonify({'status': 'closed'})
+    except:
+        pass
+    return jsonify({'status': 'not_running'})
 
 @app.route('/api/files_list', methods=['GET'])
 def list_files():
@@ -392,6 +520,93 @@ def system_info():
         })
     except Exception as e:
         return jsonify({'error': str(e)})
+
+# --- NEW: Input Blocking (Real Mouse/Keyboard Lock) ---
+@app.route('/api/input_block', methods=['POST'])
+def input_block():
+    act = request.json.get('action')
+    target = request.json.get('target', 'mouse')
+    
+    if target == 'mouse':
+        if act == 'on':
+            result = block_mouse(True)
+        else:
+            result = block_mouse(False)
+        return jsonify({'status': 'ok', 'mouse_blocked': result})
+    
+    elif target == 'keyboard':
+        if act == 'on':
+            result = block_keyboard(True)
+        else:
+            result = block_keyboard(False)
+        return jsonify({'status': 'ok', 'keyboard_blocked': result})
+    
+    elif target == 'status':
+        status = get_block_status()
+        status['available'] = INPUT_BLOCKER_AVAILABLE
+        return jsonify(status)
+    
+    return jsonify({'status': 'error', 'message': 'Unknown target'})
+
+# --- NEW: Screen Brightness ---
+@app.route('/api/brightness', methods=['POST'])
+def brightness_control():
+    try:
+        import screen_brightness_control as sbc
+        act = request.json.get('action')
+        value = request.json.get('value', 50)
+        
+        if act == 'set':
+            sbc.set_brightness(value)
+        elif act == 'up':
+            current = sbc.get_brightness()[0]
+            sbc.set_brightness(min(100, current + 10))
+        elif act == 'down':
+            current = sbc.get_brightness()[0]
+            sbc.set_brightness(max(0, current - 10))
+        elif act == 'get':
+            return jsonify({'brightness': sbc.get_brightness()[0]})
+        
+        return jsonify({'status': 'ok', 'brightness': sbc.get_brightness()[0]})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+# --- NEW: Webcam Capture ---
+@app.route('/api/webcam')
+def webcam_capture():
+    try:
+        import cv2
+        cap = cv2.VideoCapture(0)
+        ret, frame = cap.read()
+        cap.release()
+        
+        if ret:
+            # Convert to JPEG
+            _, buffer = cv2.imencode('.jpg', frame)
+            img_base64 = base64.b64encode(buffer).decode('utf-8')
+            return jsonify({'status': 'ok', 'image': f'data:image/jpeg;base64,{img_base64}'})
+        return jsonify({'status': 'error', 'message': 'Failed to capture'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
+
+# --- NEW: Play Sound ---
+@app.route('/api/sound', methods=['POST'])
+def play_sound():
+    try:
+        import winsound
+        sound_type = request.json.get('type', 'beep')
+        
+        if sound_type == 'beep':
+            freq = request.json.get('freq', 1000)
+            duration = request.json.get('duration', 500)
+            winsound.Beep(freq, duration)
+        elif sound_type == 'system':
+            name = request.json.get('name', 'SystemAsterisk')
+            winsound.PlaySound(name, winsound.SND_ALIAS)
+        
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)})
 
 # --- PREMIUM UI HTML ---
 # NOTE: The 'f' before """ allows us to use {UI_PASSWORD} inside the HTML
@@ -587,7 +802,6 @@ HTML_UI = f"""
                 <button class="btn btn-ghost" onclick="post('/api/mouse_click', {{btn:'left'}})">Left Click</button>
                 <button class="btn btn-ghost" onclick="post('/api/mouse_click', {{btn:'right'}})">Right Click</button>
             </div>
-            <button id="btn-lock" class="btn btn-ghost" style="margin-top:10px" onclick="toggleLock()">🔓 Unlock Mouse</button>
         </div>
 
         <div class="card">
@@ -644,61 +858,182 @@ HTML_UI = f"""
 
     <!-- PRANK TAB -->
     <div id="prank" class="tab-content">
+        <!-- Screen Effects -->
         <div class="card">
-            <div class="card-header"><span class="card-title">Hacker Typer</span></div>
+            <div class="card-header"><span class="card-title">🖥️ Screen Effects</span></div>
             <div class="toggle-row">
-                <span class="toggle-label">Active Status</span>
+                <span class="toggle-label">Hacker Typer</span>
                 <label class="switch"><input type="checkbox" id="chk-hacker" onchange="togglePrank('hacker', this)"><span class="slider"></span></label>
             </div>
-            <select id="speed-hacker" class="speed-select"><option value="LAGGY">Laggy</option><option value="NORMAL">Normal</option><option value="FAST">Fast</option><option value="INSANE" selected>Insane</option></select>
-        </div>
-
-        <div class="card">
-            <div class="card-header"><span class="card-title">Matrix Rain</span></div>
             <div class="toggle-row">
-                <span class="toggle-label">Active Status</span>
-                <label class="switch"><input type="checkbox" id="chk-matrix" onchange="togglePrank('matrix', this)"><span class="slider"></span></label>
+                <span class="toggle-label">Matrix Rain</span>
+                <label class="switch"><input type="checkbox" id="chk-matrix" onchange="toggleMatrixRain(this)"><span class="slider"></span></label>
             </div>
-            <select id="speed-matrix" class="speed-select"><option value="LAGGY">Laggy</option><option value="NORMAL">Normal</option><option value="FAST" selected>Fast</option><option value="INSANE">Insane</option></select>
-        </div>
-
-        <div class="card">
-            <div class="card-header"><span class="card-title">Blue Screen</span></div>
+            <div style="display:flex; gap:10px; margin-top:8px; margin-bottom:8px;">
+                <select id="matrix-color" class="speed-select" style="flex:1;">
+                    <option value="green" selected>Green</option>
+                    <option value="blue">Blue</option>
+                    <option value="red">Red</option>
+                    <option value="purple">Purple</option>
+                    <option value="cyan">Cyan</option>
+                    <option value="yellow">Yellow</option>
+                    <option value="pink">Pink</option>
+                    <option value="rainbow">Rainbow</option>
+                    <option value="multi">Multi-Color</option>
+                </select>
+                <select id="matrix-length" class="speed-select" style="flex:1;">
+                    <option value="short">Short</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="long">Long</option>
+                </select>
+            </div>
             <div class="toggle-row">
-                <span class="toggle-label">Active Status</span>
+                <span class="toggle-label">Blue Screen (BSOD)</span>
                 <label class="switch"><input type="checkbox" id="chk-bsod" onchange="togglePrank('bsod', this)"><span class="slider"></span></label>
             </div>
+            <select id="speed-screen" class="speed-select" style="margin-top:10px"><option value="LAGGY">Laggy</option><option value="NORMAL">Normal</option><option value="FAST" selected>Fast</option><option value="INSANE">Insane</option></select>
         </div>
 
+        <!-- Mouse Pranks -->
         <div class="card">
-            <div class="card-header"><span class="card-title">Tools</span></div>
-            <button class="btn btn-ghost" onclick="post('/api/prank', {{action:'jiggle'}})">✨ Mouse Jiggle</button>
+            <div class="card-header"><span class="card-title">🖱️ Mouse Pranks</span></div>
+            <div class="toggle-row">
+                <span class="toggle-label">Crazy Mouse</span>
+                <label class="switch"><input type="checkbox" id="chk-crazy-mouse" onchange="togglePrank('crazy_mouse', this)"><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row" style="border:none; padding-bottom:0;">
+                <span class="toggle-label">Block Physical Mouse</span>
+                <label class="switch"><input type="checkbox" id="chk-block-mouse" onchange="toggleInputBlock('mouse', this)"><span class="slider"></span></label>
+            </div>
             <div style="height:15px"></div>
-            <textarea id="note" rows="3" placeholder="Message content..." style="width:100%;background:var(--surface-light);border:1px solid var(--border);color:white;border-radius:16px;padding:10px;font-family:sans-serif;margin-bottom:10px;"></textarea>
-            <button class="btn btn-primary" onclick="post('/api/note_popup', {{text:document.getElementById('note').value}})">Deploy Popup</button>
+            <button class="btn btn-ghost" onclick="post('/api/prank', {{action:'jiggle'}})">✨ Mouse Jiggle (One-shot)</button>
+        </div>
+
+        <!-- Keyboard Lock -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">⌨️ Input Lock</span></div>
+            <div class="toggle-row" style="border:none;">
+                <span class="toggle-label">Block Physical Keyboard</span>
+                <label class="switch"><input type="checkbox" id="chk-block-keyboard" onchange="toggleInputBlock('keyboard', this)"><span class="slider"></span></label>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:10px;">⚠️ Safety: Ctrl+Alt+Del always works</div>
+        </div>
+
+        <!-- Audio Pranks -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🔊 Audio Pranks</span></div>
+            <div class="toggle-row">
+                <span class="toggle-label">Random Sounds</span>
+                <label class="switch"><input type="checkbox" id="chk-random-sounds" onchange="togglePrank('random_sounds', this)"><span class="slider"></span></label>
+            </div>
+            <div class="grid-2" style="margin-top:15px;">
+                <button class="btn btn-ghost" onclick="post('/api/sound', {{type:'beep', freq:1000, duration:500}})">🔔 Beep</button>
+                <button class="btn btn-ghost" onclick="post('/api/sound', {{type:'system', name:'SystemExclamation'}})">⚠️ Alert</button>
+            </div>
+        </div>
+
+
+        <!-- Scary Popup -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">💀 Scary Pranks</span></div>
+            <button class="btn btn-danger" onclick="post('/api/prank', {{action:'scary'}})">😱 Scary Popup</button>
+            <div style="height:15px"></div>
+            <textarea id="note" rows="2" placeholder="Custom popup message..." style="width:100%;background:var(--surface-light);border:1px solid var(--border);color:white;border-radius:16px;padding:10px;font-family:sans-serif;margin-bottom:10px;"></textarea>
+            <button class="btn btn-ghost" onclick="post('/api/note_popup', {{text:document.getElementById('note').value}})">📝 Deploy Custom Popup</button>
+        </div>
+        
+        <!-- Matrix Image -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🖼️ Matrix Image</span></div>
+            
+            <!-- Upload zone (shown when no image) -->
+            <div id="matrix-upload-zone" onclick="document.getElementById('matrix-img-input').click()" style="border: 2px dashed var(--border); padding: 30px 15px; text-align:center; border-radius:16px; cursor:pointer; color:var(--text-muted); transition:all 0.3s; background: rgba(139,92,246,0.02);">
+                <div style="font-size:36px; margin-bottom:10px;">🖼️</div>
+                <div style="font-size:14px; font-weight:600; color:var(--text-main);">Tap to select image</div>
+                <div style="font-size:11px; margin-top:5px;">Image will convert to Matrix ASCII art</div>
+            </div>
+            <input type="file" id="matrix-img-input" accept="image/*" style="display:none" onchange="handleMatrixUpload()">
+            
+            <!-- Controls (shown after upload) -->
+            <div id="matrix-controls" style="display:none;">
+                <div style="display:flex; align-items:center; gap:12px; background:rgba(139,92,246,0.1); padding:12px 16px; border-radius:12px; margin-bottom:12px;">
+                    <span style="font-size:24px;">✅</span>
+                    <div style="flex:1;">
+                        <div id="matrix-filename" style="font-size:13px; color:var(--text-main); font-weight:600;">image.jpg</div>
+                        <div style="font-size:11px; color:var(--text-muted);">Ready to display</div>
+                    </div>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label">Show on PC</span>
+                    <label class="switch"><input type="checkbox" id="chk-matrix-display" onchange="toggleMatrixDisplay(this)"><span class="slider"></span></label>
+                </div>
+                <button class="btn btn-ghost" style="margin-top:12px; width:100%;" onclick="replaceMatrixImage()">🔄 Replace Image</button>
+            </div>
         </div>
     </div>
 
     <!-- FILES TAB -->
     <div id="files" class="tab-content">
+        <!-- Upload Section -->
         <div class="card">
-            <div class="card-header"><span class="card-title">Upload</span></div>
-            <div style="border: 2px dashed var(--border); padding: 30px; text-align:center; border-radius:20px; cursor:pointer; margin-bottom:15px; color:var(--text-muted); transition:0.2s;" onclick="document.getElementById('file-inp').click()" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
-                <div style="font-size:24px; margin-bottom:10px;">☁️</div>
-                Tap to select file
+            <div class="card-header">
+                <span class="card-title">☁️ Upload to PC</span>
+            </div>
+            <div id="drop-zone" style="border: 2px dashed var(--border); padding: 40px 20px; text-align:center; border-radius:20px; cursor:pointer; margin-bottom:15px; color:var(--text-muted); transition:all 0.3s; background: rgba(139,92,246,0.02);" onclick="document.getElementById('file-inp').click()">
+                <div style="font-size:48px; margin-bottom:15px; opacity:0.8;">📁</div>
+                <div style="font-size:16px; font-weight:600; color:var(--text-main); margin-bottom:5px;">Tap to select file</div>
+                <div style="font-size:12px;">or drag and drop</div>
             </div>
             <input type="file" id="file-inp" style="display:none" onchange="fileSelected()">
-            <div id="upload-area" style="display:none; background: var(--surface-light); padding:15px; border-radius:16px; margin-bottom:10px;">
-                <div style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">Target: <span id="file-name" style="color:white; font-weight:bold;">...</span></div>
-                <button class="btn btn-primary" onclick="uploadFile()">Upload File</button>
+            
+            <!-- Selected file info -->
+            <div id="upload-area" style="display:none; background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(6,182,212,0.1) 100%); padding:20px; border-radius:16px; margin-bottom:10px; border:1px solid var(--border);">
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
+                    <div style="font-size:32px;">📄</div>
+                    <div style="flex:1;">
+                        <div id="file-name" style="color:white; font-weight:bold; font-size:14px; word-break:break-all;">...</div>
+                        <div id="file-size" style="color:var(--text-muted); font-size:12px;"></div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="uploadFile()" style="width:100%;">🚀 Upload Now</button>
             </div>
-            <div class="progress-container" id="progress-container"><div class="progress-bg"><div class="progress-fill" id="progress-fill"></div></div></div>
+            
+            <!-- Progress bar -->
+            <div class="progress-container" id="progress-container" style="display:none; background:var(--surface-light); padding:20px; border-radius:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span id="upload-status" style="font-size:14px; color:var(--text-main); font-weight:600;">Uploading...</span>
+                    <span id="progress-percent" style="font-size:14px; color:var(--primary); font-weight:bold;">0%</span>
+                </div>
+                <div class="progress-bg" style="margin-bottom:12px;"><div class="progress-fill" id="progress-fill"></div></div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; text-align:center;">
+                    <div style="background:rgba(139,92,246,0.1); padding:10px; border-radius:8px;">
+                        <div id="upload-speed" style="font-size:16px; font-weight:bold; color:var(--primary);">0 KB/s</div>
+                        <div style="font-size:10px; color:var(--text-muted);">SPEED</div>
+                    </div>
+                    <div style="background:rgba(6,182,212,0.1); padding:10px; border-radius:8px;">
+                        <div id="upload-transferred" style="font-size:16px; font-weight:bold; color:var(--accent);">0 MB</div>
+                        <div style="font-size:10px; color:var(--text-muted);">UPLOADED</div>
+                    </div>
+                    <div style="background:rgba(34,197,94,0.1); padding:10px; border-radius:8px;">
+                        <div id="upload-eta" style="font-size:16px; font-weight:bold; color:#22c55e;">--:--</div>
+                        <div style="font-size:10px; color:var(--text-muted);">ETA</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
+        <!-- Downloads Folder -->
         <div class="card">
-            <div class="card-header"><span class="card-title">Local Files</span></div>
-            <button class="btn btn-ghost" style="margin-bottom:15px" onclick="listFiles()">🔄 Refresh List</button>
-            <div id="flist"></div>
+            <div class="card-header">
+                <span class="card-title">📥 PC Downloads Folder</span>
+                <button class="btn btn-ghost" style="padding:8px 12px; font-size:12px;" onclick="listFiles()">🔄 Refresh</button>
+            </div>
+            <div id="flist" style="max-height:400px; overflow-y:auto;">
+                <div style="text-align:center; padding:30px; color:var(--text-muted);">
+                    <div style="font-size:32px; margin-bottom:10px;">📂</div>
+                    <div>Tap Refresh to load files</div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -865,51 +1200,233 @@ function fileSelected() {{
     var file = document.getElementById('file-inp').files[0]; 
     if(file) {{ 
         document.getElementById('upload-area').style.display = 'block'; 
-        document.getElementById('file-name').innerText = file.name; 
+        document.getElementById('file-name').innerText = file.name;
+        // Show file size
+        var sizeEl = document.getElementById('file-size');
+        if(sizeEl) {{
+            var size = file.size;
+            var sizeStr = size < 1024 ? size + ' B' : 
+                          size < 1048576 ? (size/1024).toFixed(1) + ' KB' : 
+                          (size/1048576).toFixed(1) + ' MB';
+            sizeEl.innerText = sizeStr;
+        }}
         document.getElementById('progress-container').style.display = 'none'; 
     }} 
 }}
+
 function uploadFile() {{ 
     var inp = document.getElementById('file-inp'); 
-    if(inp.files.length === 0) return; 
-    var fd = new FormData(); fd.append('file', inp.files[0]); 
+    if(inp.files.length === 0) return;
+    
+    var file = inp.files[0];
+    var fd = new FormData(); 
+    fd.append('file', file);
+    
     var progressContainer = document.getElementById('progress-container'); 
-    var progressBar = document.getElementById('progress-fill'); 
+    var progressBar = document.getElementById('progress-fill');
+    var progressPercent = document.getElementById('progress-percent');
+    var uploadStatus = document.getElementById('upload-status');
+    var uploadSpeed = document.getElementById('upload-speed');
+    var uploadTransferred = document.getElementById('upload-transferred');
+    var uploadEta = document.getElementById('upload-eta');
+    
     progressContainer.style.display = 'block'; 
-    progressBar.style.width = '0%'; 
+    progressBar.style.width = '0%';
+    if(uploadStatus) uploadStatus.innerText = 'Starting upload...';
+    
+    var startTime = Date.now();
+    var lastLoaded = 0;
+    var lastTime = startTime;
+    
     var xhr = new XMLHttpRequest(); 
     xhr.upload.addEventListener("progress", function(evt) {{ 
         if (evt.lengthComputable) {{ 
-            var percentComplete = Math.round(evt.loaded / evt.total * 100); 
-            progressBar.style.width = percentComplete + "%"; 
+            var now = Date.now();
+            var loaded = evt.loaded;
+            var total = evt.total;
+            var percentComplete = Math.round(loaded / total * 100);
+            
+            // Update progress bar
+            progressBar.style.width = percentComplete + "%";
+            if(progressPercent) progressPercent.innerText = percentComplete + "%";
+            
+            // Calculate speed (bytes per second)
+            var timeDiff = (now - lastTime) / 1000;
+            if(timeDiff > 0.5) {{  // Update every 0.5 seconds
+                var bytesDiff = loaded - lastLoaded;
+                var speed = bytesDiff / timeDiff;  // bytes per second
+                
+                // Format speed
+                var speedStr;
+                if(speed < 1024) speedStr = Math.round(speed) + ' B/s';
+                else if(speed < 1048576) speedStr = (speed/1024).toFixed(1) + ' KB/s';
+                else speedStr = (speed/1048576).toFixed(1) + ' MB/s';
+                
+                if(uploadSpeed) uploadSpeed.innerText = speedStr;
+                
+                // Calculate ETA
+                var remaining = total - loaded;
+                var eta = speed > 0 ? remaining / speed : 0;
+                var etaStr;
+                if(eta < 60) etaStr = Math.round(eta) + 's';
+                else if(eta < 3600) etaStr = Math.floor(eta/60) + 'm ' + Math.round(eta%60) + 's';
+                else etaStr = Math.floor(eta/3600) + 'h ' + Math.round((eta%3600)/60) + 'm';
+                
+                if(uploadEta) uploadEta.innerText = etaStr;
+                
+                lastLoaded = loaded;
+                lastTime = now;
+            }}
+            
+            // Format transferred bytes
+            var transferredStr;
+            if(loaded < 1024) transferredStr = loaded + ' B';
+            else if(loaded < 1048576) transferredStr = (loaded/1024).toFixed(1) + ' KB';
+            else if(loaded < 1073741824) transferredStr = (loaded/1048576).toFixed(1) + ' MB';
+            else transferredStr = (loaded/1073741824).toFixed(2) + ' GB';
+            
+            var totalStr;
+            if(total < 1024) totalStr = total + ' B';
+            else if(total < 1048576) totalStr = (total/1024).toFixed(1) + ' KB';
+            else if(total < 1073741824) totalStr = (total/1048576).toFixed(1) + ' MB';
+            else totalStr = (total/1073741824).toFixed(2) + ' GB';
+            
+            if(uploadTransferred) uploadTransferred.innerText = transferredStr;
+            if(uploadStatus) uploadStatus.innerText = 'Uploading... ' + transferredStr + ' / ' + totalStr;
         }} 
     }}); 
+    
     xhr.onload = function() {{ 
         if (this.status == 200) {{ 
-            progressBar.style.width = "100%"; 
-            setTimeout(function(){{ progressContainer.style.display = 'none'; document.getElementById('upload-area').style.display = 'none'; }}, 2000); 
-        }} else {{ alert("Upload failed"); }} 
+            progressBar.style.width = "100%";
+            if(progressPercent) progressPercent.innerText = "100%";
+            if(uploadStatus) uploadStatus.innerText = "✅ Upload Complete!";
+            if(uploadSpeed) uploadSpeed.innerText = "Done";
+            if(uploadEta) uploadEta.innerText = "0s";
+            
+            setTimeout(function(){{ 
+                progressContainer.style.display = 'none'; 
+                document.getElementById('upload-area').style.display = 'none';
+                document.getElementById('file-inp').value = '';
+            }}, 3000); 
+        }} else {{ 
+            if(uploadStatus) uploadStatus.innerText = "❌ Upload Failed";
+            alert("Upload failed"); 
+        }} 
     }}; 
-    xhr.onerror = function() {{ alert("Upload error"); }}; 
-    xhr.open("POST", "/api/upload"); xhr.send(fd); 
+    xhr.onerror = function() {{ 
+        if(uploadStatus) uploadStatus.innerText = "❌ Upload Error";
+        alert("Upload error"); 
+    }}; 
+    xhr.open("POST", "/api/upload"); 
+    xhr.send(fd); 
 }}
+
 function listFiles() {{ 
-    document.getElementById('flist').innerHTML = 'Scanning...'; 
+    document.getElementById('flist').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><div style="font-size:24px;animation:pulse 1s infinite;">⏳</div>Loading files...</div>'; 
     fetch('/api/files_list').then(r=>r.json()).then(list=>{{ 
         var html = ''; 
-        if(list.length === 0) html = '<div style="text-align:center;color:var(--text-muted);padding:20px;">No files found</div>'; 
-        list.forEach(f=> {{ 
-            html+='<div class="file-item"><div class="file-info" style="display:flex;align-items:center"><span class="file-icon">📄</span><span class="file-name">'+f+'</span></div><a href="/api/files_download/'+encodeURIComponent(f)+'" class="download-btn">Save</a></div>'; 
-        }}); 
+        if(list.length === 0) {{
+            html = '<div style="text-align:center;color:var(--text-muted);padding:30px;"><div style="font-size:32px;margin-bottom:10px;">📭</div>No files in Downloads folder</div>'; 
+        }} else {{
+            list.forEach(f=> {{ 
+                // Choose icon based on extension
+                var ext = f.split('.').pop().toLowerCase();
+                var icon = '📄';
+                if(['jpg','jpeg','png','gif','webp','bmp'].includes(ext)) icon = '🖼️';
+                else if(['mp4','mkv','avi','mov','webm'].includes(ext)) icon = '🎬';
+                else if(['mp3','wav','flac','ogg','m4a'].includes(ext)) icon = '🎵';
+                else if(['zip','rar','7z','tar','gz'].includes(ext)) icon = '📦';
+                else if(['pdf'].includes(ext)) icon = '📕';
+                else if(['doc','docx'].includes(ext)) icon = '📝';
+                else if(['xls','xlsx'].includes(ext)) icon = '📊';
+                else if(['exe','msi'].includes(ext)) icon = '⚙️';
+                else if(['txt','log'].includes(ext)) icon = '📃';
+                else if(['py','js','html','css','json'].includes(ext)) icon = '💻';
+                
+                html+='<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,0.03);padding:12px 16px;border-radius:12px;margin-bottom:8px;border:1px solid var(--border);transition:all 0.2s;" onmouseover="this.style.borderColor=\\'var(--primary)\\'" onmouseout="this.style.borderColor=\\'var(--border)\\'">';
+                html+='<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">';
+                html+='<span style="font-size:24px;">'+icon+'</span>';
+                html+='<span style="font-size:13px;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+f+'</span>';
+                html+='</div>';
+                html+='<a href="/api/files_download/'+encodeURIComponent(f)+'" style="background:var(--primary);color:white;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;">⬇️ Save</a>';
+                html+='</div>'; 
+            }});
+        }}
         document.getElementById('flist').innerHTML = html; 
-    }}); 
+    }}).catch(e=>{{
+        document.getElementById('flist').innerHTML = '<div style="text-align:center;color:var(--danger);padding:20px;">Error loading files</div>';
+    }});
 }}
 function togglePrank(act, checkbox) {{ 
     var state = checkbox.checked ? 'on' : 'off'; 
-    var speed = 'NORMAL'; 
-    if (act === 'hacker') speed = document.getElementById('speed-hacker').value; 
-    if (act === 'matrix') speed = document.getElementById('speed-matrix').value; 
+    var speed = document.getElementById('speed-screen') ? document.getElementById('speed-screen').value : 'NORMAL'; 
     post('/api/prank', {{action: act, state: state, speed: speed}}); 
+}}
+
+// Matrix Rain with color and length options
+function toggleMatrixRain(checkbox) {{
+    var state = checkbox.checked ? 'on' : 'off';
+    var speed = document.getElementById('speed-screen').value || 'NORMAL';
+    var color = document.getElementById('matrix-color').value || 'green';
+    var length = document.getElementById('matrix-length').value || 'medium';
+    post('/api/prank', {{action: 'matrix', state: state, speed: speed, color: color, length: length}});
+}}
+
+// Toggle input blocking (real mouse/keyboard lock)
+function toggleInputBlock(target, checkbox) {{
+    var act = checkbox.checked ? 'on' : 'off';
+    post('/api/input_block', {{action: act, target: target}});
+}}
+
+// Matrix Image - stored file data
+var matrixImageFile = null;
+
+// Handle Matrix image upload
+function handleMatrixUpload() {{
+    var inp = document.getElementById('matrix-img-input');
+    if(inp.files.length === 0) return;
+    
+    matrixImageFile = inp.files[0];
+    
+    // Show controls, hide upload zone
+    document.getElementById('matrix-upload-zone').style.display = 'none';
+    document.getElementById('matrix-controls').style.display = 'block';
+    document.getElementById('matrix-filename').innerText = matrixImageFile.name;
+    document.getElementById('chk-matrix-display').checked = false;
+}}
+
+// Toggle Matrix display on/off
+function toggleMatrixDisplay(checkbox) {{
+    if(!matrixImageFile) {{
+        checkbox.checked = false;
+        return;
+    }}
+    
+    if(checkbox.checked) {{
+        // Upload and display
+        var fd = new FormData();
+        fd.append('file', matrixImageFile);
+        fetch('/api/matrix_image', {{method:'POST', body: fd}})
+            .then(r => r.json())
+            .then(data => {{
+                if(data.status !== 'displaying') {{
+                    checkbox.checked = false;
+                }}
+            }});
+    }} else {{
+        // Close the display
+        post('/api/matrix_close', {{}});
+    }}
+}}
+
+// Replace Matrix image - go back to upload zone
+function replaceMatrixImage() {{
+    matrixImageFile = null;
+    document.getElementById('matrix-upload-zone').style.display = 'block';
+    document.getElementById('matrix-controls').style.display = 'none';
+    document.getElementById('chk-matrix-display').checked = false;
+    document.getElementById('matrix-img-input').value = '';
 }}
 function doAction(act) {{ 
     var p = prompt("Enter Admin Password"); 

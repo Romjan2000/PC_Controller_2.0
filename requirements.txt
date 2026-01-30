@@ -7,3 +7,5 @@ requests
 Pillow
 python-dotenv
 pywin32
+gtts
+playsound==1.2.2

@@ -1,52 +1,76 @@
+"""
+PC Controller - Simple Popup
+Shows a message with a Copy button. Click to copy and close.
+"""
 import tkinter as tk
 import sys
+
 try:
     import pyperclip
 except:
     pyperclip = None
 
-def run_popup(msg):
-    try:
-        root = tk.Tk()
-        root.title("Note")
-        root.attributes('-topmost', True)
-        ws = root.winfo_screenwidth()
-        hs = root.winfo_screenheight()
-        w, h = 400, 150
-        x = (ws/2) - (w/2)
-        y = (hs/2) - (h/2)
-        root.geometry('%dx%d+%d+%d' % (w, h, x, y))
-        root.configure(bg="#1e1e2e")
-        root.overrideredirect(True)
-        
-        root.after(100, root.focus_force)
-        root.grab_set()
-        
-        def copy_text():
-            if pyperclip:
-                pyperclip.copy(msg)
-        
-        def close_popup():
-            root.destroy()
-        
-        def copy_and_close():
-            copy_text()
-            close_popup()
-            
-        tk.Label(root, text="📌 MESSAGE", bg="#1e1e2e", fg="#00ff88", font=("Segoe UI", 10, "bold")).pack(pady=8)
-        tk.Label(root, text=msg, wraplength=300, bg="#1e1e2e", fg="white", font=("Segoe UI", 11)).pack(expand=True)
-        
-        # Button frame for multiple buttons
-        btn_frame = tk.Frame(root, bg="#1e1e2e")
-        btn_frame.pack(pady=8)
-        
-        tk.Button(btn_frame, text="📋 COPY & CLOSE", command=copy_and_close, bg="#00ff88", fg="black", relief="flat", font=("Segoe UI", 10, "bold"), padx=15, pady=5, cursor="hand2").pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="✕ CLOSE", command=close_popup, bg="#ff5555", fg="white", relief="flat", font=("Segoe UI", 10, "bold"), padx=15, pady=5, cursor="hand2").pack(side=tk.LEFT, padx=5)
-        root.after(15000, root.destroy) 
-        root.mainloop()
-    except:
-        pass
+def show_popup(message):
+    root = tk.Tk()
+    root.title("PC Controller")
+    root.overrideredirect(True)
+    root.attributes('-topmost', True)
+    root.configure(bg='#1a1a2e')
+    
+    # Size and position
+    width, height = 400, 220
+    x = (root.winfo_screenwidth() - width) // 2
+    y = (root.winfo_screenheight() - height) // 2
+    root.geometry(f'{width}x{height}+{x}+{y}')
+    
+    # Border frame
+    border = tk.Frame(root, bg='#8b5cf6')
+    border.pack(fill='both', expand=True)
+    
+    main = tk.Frame(border, bg='#1a1a2e')
+    main.pack(fill='both', expand=True, padx=3, pady=3)
+    
+    # Message
+    tk.Label(
+        main,
+        text=message,
+        font=('Segoe UI', 13),
+        fg='#ffffff',
+        bg='#1a1a2e',
+        wraplength=350,
+        justify='center'
+    ).pack(fill='both', expand=True, padx=20, pady=20)
+    
+    # Copy button
+    def copy_close():
+        if pyperclip:
+            try:
+                pyperclip.copy(message)
+            except:
+                pass
+        root.destroy()
+    
+    btn = tk.Button(
+        main,
+        text="📋  Copy",
+        font=('Segoe UI', 12, 'bold'),
+        fg='#ffffff',
+        bg='#8b5cf6',
+        activebackground='#a78bfa',
+        activeforeground='#ffffff',
+        relief='flat',
+        cursor='hand2',
+        command=copy_close,
+        pady=12
+    )
+    btn.pack(fill='x', padx=20, pady=(0, 20))
+    
+    root.bind('<Escape>', lambda e: root.destroy())
+    root.bind('<Return>', lambda e: copy_close())
+    root.after(60000, root.destroy)
+    
+    root.mainloop()
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        run_popup(sys.argv[1])
+    msg = sys.argv[1] if len(sys.argv) > 1 else "Test message"
+    show_popup(msg)
