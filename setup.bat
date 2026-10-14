@@ -53,19 +53,22 @@ if not exist ".env" (
     echo [OK] .env file exists
 )
 
-:: Check for Cloudflare
+:: Check and auto-download Cloudflare Tunnel
 if not exist "cloudflared.exe" (
     echo.
-    echo  ====================================
-    echo   CLOUDFLARE TUNNEL (Recommended)
-    echo  ====================================
-    echo.
-    echo To enable remote access, download cloudflared.exe:
-    echo https://github.com/cloudflare/cloudflared/releases/latest
-    echo.
-    echo Download 'cloudflared-windows-amd64.exe' and rename to 'cloudflared.exe'
-    echo Place it in this folder: %CD%
-    echo.
+    echo [*] Downloading Cloudflare Tunnel (cloudflared.exe)...
+    curl -L -o "cloudflared.exe" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+    if exist "cloudflared.exe" (
+        echo [OK] Cloudflared downloaded successfully!
+    ) else (
+        echo [*] Retrying download via PowerShell...
+        powershell -Command "Invoke-WebRequest -Uri 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe' -OutFile 'cloudflared.exe' -UseBasicParsing"
+        if exist "cloudflared.exe" (
+            echo [OK] Cloudflared downloaded successfully!
+        ) else (
+            echo [!] Could not auto-download cloudflared. Remote tunnel may not work.
+        )
+    )
 ) else (
     echo [OK] Cloudflared found
 )

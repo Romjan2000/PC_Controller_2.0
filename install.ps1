@@ -216,24 +216,26 @@ $createShortcut = Read-Host "  Create desktop shortcut? (y/n)"
 if ($createShortcut -eq "y") {
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut("$env:USERPROFILE\Desktop\PC Controller.lnk")
-    $Shortcut.TargetPath = "$INSTALL_DIR\run.bat"
+    $Shortcut.TargetPath = "wscript.exe"
+    $Shortcut.Arguments = "`"$INSTALL_DIR\silent_start.vbs`""
     $Shortcut.WorkingDirectory = $INSTALL_DIR
     $Shortcut.IconLocation = "shell32.dll,12"
     $Shortcut.Save()
-    Write-Success "Desktop shortcut created"
+    Write-Success "Desktop shortcut created (Silent background launcher)"
 }
 
-# Add to Startup
+# Add to Startup (100% Silent - Zero Popups or Flashing Console Windows)
 $addStartup = Read-Host "  Start PC Controller on Windows startup? (y/n)"
 if ($addStartup -eq "y") {
     $startupPath = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut("$startupPath\PC Controller.lnk")
-    $Shortcut.TargetPath = "$INSTALL_DIR\run.bat"
+    $Shortcut.TargetPath = "wscript.exe"
+    $Shortcut.Arguments = "`"$INSTALL_DIR\silent_start.vbs`""
     $Shortcut.WorkingDirectory = $INSTALL_DIR
-    $Shortcut.WindowStyle = 7  # Minimized
+    $Shortcut.WindowStyle = 7  # Minimized / Hidden
     $Shortcut.Save()
-    Write-Success "Added to Windows startup"
+    Write-Success "Added to Windows startup (Completely silent with zero popups)"
 }
 
 # --- Complete! ---
@@ -254,8 +256,8 @@ Write-Color ""
 
 $startNow = Read-Host "  Start PC Controller now? (y/n)"
 if ($startNow -eq "y") {
-    Start-Process "$INSTALL_DIR\run.bat" -WorkingDirectory $INSTALL_DIR
-    Write-Success "PC Controller is starting..."
+    Start-Process "wscript.exe" -ArgumentList "`"$INSTALL_DIR\silent_start.vbs`"" -WorkingDirectory $INSTALL_DIR
+    Write-Success "PC Controller is starting silently in the background..."
     Write-Color "  Check your Telegram for the access URL!" "Cyan"
 }
 

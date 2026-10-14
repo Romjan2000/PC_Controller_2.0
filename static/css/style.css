@@ -1,0 +1,963 @@
+/* ==========================================================================
+   PC CONTROLLER PRO - MULTI-STYLE THEME SYSTEM (UI-UX-PRO-MAX)
+   Styles: Glass UI, Neumorphism, Claymorphic, Dimensional, Hacker UI
+   Modes: Light & Dark for each style (10 Total Themes)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. DEFAULT TOKENS & STYLE 1: GLASS UI (DARK)
+   -------------------------------------------------------------------------- */
+:root,
+[data-theme-style="glass"][data-theme-mode="dark"] {
+    --bg: #09090b;
+    --bg-mesh: radial-gradient(circle at 50% 0%, #2e1065 0%, transparent 55%), radial-gradient(circle at 0% 100%, #0e7490 0%, transparent 45%);
+    --surface: rgba(24, 24, 27, 0.7);
+    --surface-light: rgba(39, 39, 42, 0.65);
+    --surface-card: rgba(24, 24, 27, 0.75);
+    --primary: #8b5cf6;
+    --primary-glow: rgba(139, 92, 246, 0.5);
+    --accent: #06b6d4;
+    --danger: #f43f5e;
+    --text-main: #f4f4f5;
+    --text-muted: #a1a1aa;
+    --border: rgba(255, 255, 255, 0.1);
+    --border-highlight: rgba(255, 255, 255, 0.18);
+    --backdrop-blur: blur(20px);
+    --card-radius: 24px;
+    --btn-radius: 16px;
+    --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    --btn-shadow: 0 4px 15px rgba(124, 58, 237, 0.25);
+    --trackpad-bg: linear-gradient(135deg, rgba(39, 39, 42, 0.8) 0%, rgba(24, 24, 27, 0.9) 100%);
+    --trackpad-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.4);
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --card-border: 1px solid var(--border);
+}
+
+/* --------------------------------------------------------------------------
+   STYLE 1: GLASS UI (LIGHT)
+   -------------------------------------------------------------------------- */
+[data-theme-style="glass"][data-theme-mode="light"] {
+    --bg: #eef2f7;
+    --bg-mesh: radial-gradient(circle at 50% 0%, #c7d2fe 0%, transparent 60%), radial-gradient(circle at 100% 100%, #bae6fd 0%, transparent 50%);
+    --surface: rgba(255, 255, 255, 0.75);
+    --surface-light: rgba(241, 245, 249, 0.85);
+    --surface-card: rgba(255, 255, 255, 0.8);
+    --primary: #7c3aed;
+    --primary-glow: rgba(124, 58, 237, 0.3);
+    --accent: #0284c7;
+    --danger: #e11d48;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: rgba(255, 255, 255, 0.7);
+    --border-highlight: rgba(255, 255, 255, 0.9);
+    --backdrop-blur: blur(20px);
+    --card-radius: 24px;
+    --btn-radius: 16px;
+    --card-shadow: 0 12px 32px 0 rgba(100, 116, 139, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    --btn-shadow: 0 4px 15px rgba(124, 58, 237, 0.25);
+    --trackpad-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%);
+    --trackpad-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.08);
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --card-border: 1px solid var(--border);
+}
+
+/* --------------------------------------------------------------------------
+   STYLE 2: NEUMORPHISM (DARK)
+   -------------------------------------------------------------------------- */
+[data-theme-style="neumorphic"][data-theme-mode="dark"] {
+    --bg: #1e2025;
+    --bg-mesh: none;
+    --surface: #1e2025;
+    --surface-light: #25282e;
+    --surface-card: #1e2025;
+    --primary: #06b6d4;
+    --primary-glow: rgba(6, 182, 212, 0.4);
+    --accent: #8b5cf6;
+    --danger: #f43f5e;
+    --text-main: #e2e8f0;
+    --text-muted: #8e96a4;
+    --border: transparent;
+    --border-highlight: transparent;
+    --backdrop-blur: none;
+    --card-radius: 20px;
+    --btn-radius: 14px;
+    --card-shadow: 8px 8px 18px #141519, -8px -8px 18px #282b31;
+    --btn-shadow: 5px 5px 12px #141519, -5px -5px 12px #282b31;
+    --trackpad-bg: #1e2025;
+    --trackpad-shadow: inset 6px 6px 14px #141519, inset -6px -6px 14px #282b31;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --card-border: none;
+}
+
+/* --------------------------------------------------------------------------
+   STYLE 2: NEUMORPHISM (LIGHT)
+   -------------------------------------------------------------------------- */
+[data-theme-style="neumorphic"][data-theme-mode="light"] {
+    --bg: #e0e5ec;
+    --bg-mesh: none;
+    --surface: #e0e5ec;
+    --surface-light: #d6dde7;
+    --surface-card: #e0e5ec;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.35);
+    --accent: #06b6d4;
+    --danger: #ef4444;
+    --text-main: #2d3748;
+    --text-muted: #718096;
+    --border: transparent;
+    --border-highlight: transparent;
+    --backdrop-blur: none;
+    --card-radius: 20px;
+    --btn-radius: 14px;
+    --card-shadow: 9px 9px 18px #b8b9be, -9px -9px 18px #ffffff;
+    --btn-shadow: 6px 6px 12px #b8b9be, -6px -6px 12px #ffffff;
+    --trackpad-bg: #e0e5ec;
+    --trackpad-shadow: inset 6px 6px 12px #b8b9be, inset -6px -6px 12px #ffffff;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --card-border: none;
+}
+
+/* --------------------------------------------------------------------------
+   STYLE 3: CLAYMORPHIC (DARK)
+   -------------------------------------------------------------------------- */
+[data-theme-style="clay"][data-theme-mode="dark"] {
+    --bg: #13151f;
+    --bg-mesh: radial-gradient(circle at 80% 20%, #2e1c3e 0%, transparent 50%), radial-gradient(circle at 10% 80%, #17283c 0%, transparent 50%);
+    --surface: #1e2132;
+    --surface-light: #282d43;
+    --surface-card: #1e2132;
+    --primary: #ec4899;
+    --primary-glow: rgba(236, 72, 153, 0.4);
+    --accent: #8b5cf6;
+    --danger: #f43f5e;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-highlight: rgba(255, 255, 255, 0.15);
+    --backdrop-blur: none;
+    --card-radius: 30px;
+    --btn-radius: 22px;
+    --card-shadow: 10px 14px 26px rgba(0, 0, 0, 0.5), inset 4px 4px 8px rgba(255, 255, 255, 0.15), inset -4px -4px 8px rgba(0, 0, 0, 0.4);
+    --btn-shadow: 6px 8px 16px rgba(0, 0, 0, 0.4), inset 3px 3px 6px rgba(255, 255, 255, 0.25), inset -3px -3px 6px rgba(0, 0, 0, 0.3);
+    --trackpad-bg: #171926;
+    --trackpad-shadow: inset 8px 8px 16px rgba(0, 0, 0, 0.5), inset -6px -6px 12px rgba(255, 255, 255, 0.05);
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --card-border: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+/* --------------------------------------------------------------------------
+   STYLE 3: CLAYMORPHIC (LIGHT)
+   -------------------------------------------------------------------------- */
+[data-theme-style="clay"][data-theme-mode="light"] {
+    --bg: #f4f1fe;
+    --bg-mesh: radial-gradient(circle at 10% 10%, #ffe4e6 0%, transparent 40%), radial-gradient(circle at 90% 90%, #dbeafe 0%, transparent 40%);
+    --surface: #ffffff;
+    --surface-light: #f1edfe;
+    --surface-card: #ffffff;
+    --primary: #8b5cf6;
+    --primary-glow: rgba(139, 92, 246, 0.35);
+    --accent: #f43f5e;
+    --danger: #ef4444;
+    --text-main: #1e1b4b;
+    --text-muted: #6b7280;
+    --border: #ffffff;
+    --border-highlight: #ffffff;
+    --backdrop-blur: none;
+    --card-radius: 30px;
+    --btn-radius: 22px;
+    --card-shadow: 12px 16px 30px rgba(139, 92, 246, 0.14), inset 5px 5px 10px rgba(255, 255, 255, 0.95), inset -5px -5px 10px rgba(139, 92, 246, 0.08);
+    --btn-shadow: 6px 10px 20px rgba(139, 92, 246, 0.25), inset 3px 3px 6px rgba(255, 255, 255, 0.8), inset -3px -3px 6px rgba(0, 0, 0, 0.06);
+    --trackpad-bg: #f8f6ff;
+    --trackpad-shadow: inset 6px 6px 14px rgba(139, 92, 246, 0.12), inset -6px -6px 14px #ffffff;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --card-border: 3px solid #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   STYLE 4: DIMENSIONAL (DARK)
+   -------------------------------------------------------------------------- */
+[data-theme-style="dimensional"][data-theme-mode="dark"] {
+    --bg: #0b0f19;
+    --bg-mesh: radial-gradient(circle at 50% 0%, #1e293b 0%, transparent 70%);
+    --surface: #111827;
+    --surface-light: #1f2937;
+    --surface-card: #111827;
+    --primary: #3b82f6;
+    --primary-glow: rgba(59, 130, 246, 0.4);
+    --accent: #10b981;
+    --danger: #ef4444;
+    --text-main: #f9fafb;
+    --text-muted: #9ca3af;
+    --border: #374151;
+    --border-highlight: #4b5563;
+    --backdrop-blur: none;
+    --card-radius: 16px;
+    --btn-radius: 12px;
+    --card-shadow: 0 5px 0 #1f2937, 0 14px 28px rgba(0, 0, 0, 0.6);
+    --btn-shadow: 0 4px 0 #1d4ed8, 0 8px 16px rgba(0, 0, 0, 0.3);
+    --trackpad-bg: #0d121d;
+    --trackpad-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.05);
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --card-border: 1px solid var(--border);
+}
+
+/* --------------------------------------------------------------------------
+   STYLE 4: DIMENSIONAL (LIGHT)
+   -------------------------------------------------------------------------- */
+[data-theme-style="dimensional"][data-theme-mode="light"] {
+    --bg: #f1f5f9;
+    --bg-mesh: radial-gradient(circle at 50% 0%, #e2e8f0 0%, transparent 70%);
+    --surface: #ffffff;
+    --surface-light: #f8fafc;
+    --surface-card: #ffffff;
+    --primary: #2563eb;
+    --primary-glow: rgba(37, 99, 235, 0.3);
+    --accent: #059669;
+    --danger: #dc2626;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border: #cbd5e1;
+    --border-highlight: #94a3b8;
+    --backdrop-blur: none;
+    --card-radius: 16px;
+    --btn-radius: 12px;
+    --card-shadow: 0 5px 0 #cbd5e1, 0 12px 24px rgba(0, 0, 0, 0.07);
+    --btn-shadow: 0 4px 0 #1d4ed8, 0 6px 12px rgba(37, 99, 235, 0.2);
+    --trackpad-bg: #f8fafc;
+    --trackpad-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.06), 0 1px 0 #ffffff;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --card-border: 1px solid var(--border);
+}
+
+/* --------------------------------------------------------------------------
+   STYLE 5: HACKER UI (DARK)
+   -------------------------------------------------------------------------- */
+[data-theme-style="hacker"][data-theme-mode="dark"] {
+    --bg: #050807;
+    --bg-mesh: linear-gradient(rgba(0, 255, 102, 0.03) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+    --surface: #0a110d;
+    --surface-light: #0f1c14;
+    --surface-card: #0a110d;
+    --primary: #00ff66;
+    --primary-glow: rgba(0, 255, 102, 0.5);
+    --accent: #00e5ff;
+    --danger: #ff0055;
+    --text-main: #00ff66;
+    --text-muted: #009933;
+    --border: #00ff66;
+    --border-highlight: #00ff66;
+    --backdrop-blur: none;
+    --card-radius: 6px;
+    --btn-radius: 4px;
+    --card-shadow: 0 0 20px rgba(0, 255, 102, 0.12), inset 0 0 15px rgba(0, 255, 102, 0.04);
+    --btn-shadow: 0 0 12px rgba(0, 255, 102, 0.25);
+    --trackpad-bg: #060b08;
+    --trackpad-shadow: inset 0 0 15px rgba(0, 255, 102, 0.15);
+    --font-family: 'Consolas', 'Courier New', 'JetBrains Mono', monospace;
+    --card-border: 1px solid #00ff66;
+}
+
+/* --------------------------------------------------------------------------
+   STYLE 5: HACKER UI (LIGHT - CLEANROOM CYBER)
+   -------------------------------------------------------------------------- */
+[data-theme-style="hacker"][data-theme-mode="light"] {
+    --bg: #f0f5f2;
+    --bg-mesh: none;
+    --surface: #ffffff;
+    --surface-light: #e6ede8;
+    --surface-card: #ffffff;
+    --primary: #059669;
+    --primary-glow: rgba(5, 150, 105, 0.25);
+    --accent: #0284c7;
+    --danger: #dc2626;
+    --text-main: #022c22;
+    --text-muted: #065f46;
+    --border: #059669;
+    --border-highlight: #047857;
+    --backdrop-blur: none;
+    --card-radius: 6px;
+    --btn-radius: 4px;
+    --card-shadow: 0 0 15px rgba(5, 150, 105, 0.08);
+    --btn-shadow: 0 3px 8px rgba(5, 150, 105, 0.2);
+    --trackpad-bg: #f8faf8;
+    --trackpad-shadow: inset 0 0 10px rgba(5, 150, 105, 0.08);
+    --font-family: 'Consolas', 'Courier New', 'JetBrains Mono', monospace;
+    --card-border: 1px solid #059669;
+}
+
+/* --------------------------------------------------------------------------
+   BASE STYLES & LAYOUT
+   -------------------------------------------------------------------------- */
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    outline: none;
+}
+
+body {
+    font-family: var(--font-family);
+    background: var(--bg);
+    color: var(--text-main);
+    margin: 0;
+    padding: 0;
+    padding-bottom: 110px;
+    background-image: var(--bg-mesh);
+    background-attachment: fixed;
+    background-size: cover;
+    transition: background 0.3s ease, color 0.3s ease;
+    min-height: 100vh;
+}
+
+/* Hacker UI Scanlines Overlay */
+[data-theme-style="hacker"][data-theme-mode="dark"] body::before {
+    content: " ";
+    display: block;
+    position: fixed;
+    top: 0; left: 0; bottom: 0; right: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    z-index: 1500;
+    background-size: 100% 3px, 6px 100%;
+    pointer-events: none;
+    opacity: 0.6;
+}
+
+/* --- LOGIN OVERLAY --- */
+#login-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.3s ease;
+}
+
+.login-card {
+    background: var(--surface-card);
+    border: var(--card-border);
+    padding: 40px 32px;
+    border-radius: var(--card-radius);
+    width: 90%;
+    max-width: 340px;
+    text-align: center;
+    box-shadow: var(--card-shadow);
+    backdrop-filter: var(--backdrop-blur);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+}
+
+.brand-title {
+    font-size: 26px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 24px;
+    letter-spacing: -0.5px;
+}
+
+/* --- GENERAL INPUTS --- */
+input, textarea, select {
+    width: 100%;
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 14px 16px;
+    border-radius: var(--btn-radius);
+    margin-bottom: 14px;
+    font-size: 14px;
+    transition: 0.2s ease;
+    font-family: inherit;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+select.speed-select {
+    padding: 12px;
+    font-size: 13px;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+}
+
+/* --- LAYOUT & CARDS --- */
+.container {
+    padding: 20px;
+    max-width: 620px;
+    margin: 0 auto;
+}
+
+.header {
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text-main);
+}
+
+.header p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tab-content {
+    display: none;
+    animation: fadeUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+    background: var(--surface-card);
+    backdrop-filter: var(--backdrop-blur);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+    border: var(--card-border);
+    border-radius: var(--card-radius);
+    padding: 22px;
+    margin-bottom: 20px;
+    box-shadow: var(--card-shadow);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.card-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* --- BUTTONS --- */
+.btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--btn-radius);
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    position: relative;
+    overflow: hidden;
+    font-family: inherit;
+    box-shadow: var(--btn-shadow);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    color: white;
+    border: none;
+}
+
+.btn-primary:active {
+    transform: scale(0.97);
+}
+
+.btn-danger {
+    background: rgba(244, 63, 94, 0.12);
+    color: var(--danger);
+    border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+.btn-danger:active {
+    transform: scale(0.97);
+}
+
+.btn-ghost {
+    background: var(--surface-light);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+}
+
+.btn-ghost:active {
+    transform: scale(0.97);
+}
+
+/* Dimensional Button 3D Hard Press */
+[data-theme-style="dimensional"] .btn {
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+[data-theme-style="dimensional"] .btn:active {
+    transform: translateY(3px) scale(1) !important;
+    box-shadow: 0 1px 0 var(--border), 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Claymorphic Pill Button Spring */
+[data-theme-style="clay"] .btn {
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+[data-theme-style="clay"] .btn:active {
+    transform: scale(0.94) translateY(2px) !important;
+}
+
+/* Neumorphic Inset Push */
+[data-theme-style="neumorphic"] .btn:active {
+    box-shadow: inset 3px 3px 7px rgba(0, 0, 0, 0.3), inset -3px -3px 7px rgba(255, 255, 255, 0.15) !important;
+    transform: scale(0.98) !important;
+}
+
+/* --- STATS --- */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.stat-card {
+    background: var(--surface-light);
+    border: var(--card-border);
+    border-radius: var(--card-radius);
+    padding: 18px;
+    text-align: center;
+    box-shadow: var(--card-shadow);
+}
+
+.stat-circle {
+    width: 86px;
+    height: 86px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    background: conic-gradient(var(--primary) 0%, rgba(255, 255, 255, 0.08) 0%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 0 18px var(--primary-glow);
+}
+
+.stat-inner {
+    width: 68px;
+    height: 68px;
+    background: var(--surface);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 16px;
+    color: var(--text-main);
+}
+
+.stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* --- SCREENSHOT & LIVE STREAM --- */
+.screen-preview {
+    width: 100%;
+    height: 220px;
+    background: #000;
+    border-radius: var(--card-radius);
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border);
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6);
+}
+
+.screen-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.screen-preview img.loaded {
+    opacity: 1;
+}
+
+.screen-preview img.live {
+    object-fit: contain;
+    opacity: 1;
+}
+
+.live-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(220, 38, 38, 0.95);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    display: none;
+    z-index: 10;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.screen-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.8));
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 1px;
+    gap: 8px;
+    z-index: 5;
+    transition: opacity 0.3s;
+    cursor: pointer;
+}
+
+.screen-preview:hover .screen-overlay {
+    opacity: 1;
+}
+
+.screen-preview.live-mode .screen-overlay {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* --- TRACKPAD --- */
+.trackpad {
+    width: 100%;
+    height: 280px;
+    background: var(--trackpad-bg);
+    border-radius: var(--card-radius);
+    border: var(--card-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-weight: 700;
+    letter-spacing: 2px;
+    position: relative;
+    box-shadow: var(--trackpad-shadow);
+    transition: border-color 0.3s, box-shadow 0.3s;
+    touch-action: none;
+}
+
+.trackpad:active {
+    border-color: var(--primary);
+}
+
+.trackpad::after {
+    content: 'TOUCHPAD';
+    opacity: 0.35;
+    font-size: 13px;
+    letter-spacing: 3px;
+}
+
+/* --- TOGGLES --- */
+.toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.toggle-row:last-child {
+    border-bottom: none;
+}
+
+.toggle-label {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-main);
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 26px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--surface-light);
+    border-radius: 34px;
+    transition: .35s;
+    border: 1px solid var(--border);
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    border-radius: 50%;
+    transition: .35s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+input:checked + .slider {
+    background-color: var(--primary);
+    border-color: var(--primary);
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px);
+}
+
+/* --- BOTTOM NAV --- */
+.bottom-nav {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 92%;
+    max-width: 520px;
+    background: var(--surface-card);
+    backdrop-filter: var(--backdrop-blur);
+    -webkit-backdrop-filter: var(--backdrop-blur);
+    border: var(--card-border);
+    border-radius: 32px;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px;
+    box-shadow: var(--card-shadow);
+    z-index: 1000;
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 20px;
+    cursor: pointer;
+    padding: 10px 14px;
+    border-radius: 20px;
+    transition: 0.25s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-family: inherit;
+}
+
+.nav-item span {
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.nav-item.active {
+    color: var(--primary);
+    background: rgba(139, 92, 246, 0.12);
+    transform: translateY(-3px);
+}
+
+.nav-item.active span {
+    color: var(--primary);
+}
+
+/* --- UTILS --- */
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.clip-box {
+    background: var(--surface-light);
+    color: var(--accent);
+    padding: 14px;
+    border-radius: var(--btn-radius);
+    font-family: monospace;
+    font-size: 12px;
+    word-break: break-all;
+    min-height: 55px;
+    border: 1px solid var(--border);
+    margin-bottom: 10px;
+    position: relative;
+}
+
+.clip-box::before {
+    content: 'CLIPBOARD';
+    position: absolute;
+    top: -8px;
+    left: 10px;
+    background: var(--bg);
+    padding: 0 5px;
+    font-size: 9px;
+    color: var(--text-muted);
+    font-weight: bold;
+}
+
+.progress-container {
+    margin-top: 15px;
+}
+
+.progress-bg {
+    background: var(--surface-light);
+    border-radius: 10px;
+    height: 8px;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.progress-fill {
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    height: 100%;
+    width: 0%;
+    transition: width 0.2s ease;
+    border-radius: 10px;
+}
+
+/* ==========================================================================
+   THEME SELECTOR COMPONENTS (UI-UX-PRO-MAX)
+   ========================================================================== */
+.theme-switch-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.theme-pill-btn {
+    background: var(--surface-light);
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: 0.2s;
+    font-family: inherit;
+}
+
+.theme-pill-btn:hover {
+    border-color: var(--primary);
+}
+
+/* Theme Selector Grid */
+.theme-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.theme-card-option {
+    border: 2px solid var(--border);
+    background: var(--surface-light);
+    border-radius: 14px;
+    padding: 12px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.theme-card-option:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.theme-card-option.active {
+    border-color: var(--primary);
+    background: rgba(139, 92, 246, 0.12);
+    box-shadow: 0 0 12px var(--primary-glow);
+}
+
+.theme-card-icon {
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+
+.theme-card-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+/* Mode Switch Tabs */
+.mode-toggle-group {
+    display: flex;
+    background: var(--surface-light);
+    border-radius: 14px;
+    padding: 4px;
+    margin-top: 14px;
+    border: 1px solid var(--border);
+}
+
+.mode-btn {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: inherit;
+}
+
+.mode-btn.active {
+    background: var(--surface);
+    color: var(--text-main);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}

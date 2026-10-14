@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+    <title>PC CONTROL PRO</title>
+    <link rel="stylesheet" href="/static/css/style.css?v={{ version }}">
+    <script>
+        (function() {
+            var s = localStorage.getItem('pc_controller_style') || 'glass';
+            var m = localStorage.getItem('pc_controller_mode') || 'dark';
+            document.documentElement.setAttribute('data-theme-style', s);
+            document.documentElement.setAttribute('data-theme-mode', m);
+        })();
+    </script>
+</head>
+<body>
+<div id="login-overlay"><div class="login-card"><div class="brand-title">AUTHENTICATE</div><input type="password" id="login-pwd" placeholder="Enter Access Key" onkeydown="if(event.key==='Enter') doLogin()"><button class="btn btn-primary" onclick="doLogin()">LOGIN</button></div></div>
+
+<div class="container" id="main-app" style="display:none;">
+    <div class="header">
+        <div>
+            <h1 id="page-title">Dashboard</h1>
+            <p id="active-app">Connecting...</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <button class="theme-pill-btn" onclick="toggleQuickMode()" id="quick-mode-btn" title="Toggle Light/Dark Mode">🌙</button>
+            <div style="width: 40px; height: 40px; background: var(--surface-light); border-radius: var(--btn-radius); display:flex; align-items:center; justify-content:center; border: 1px solid var(--border);">
+                <span style="font-size:20px;">🖥️</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="dash" class="tab-content active">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-circle"><div class="stat-inner" id="cpu-circle">0%</div></div>
+                <div class="stat-label">CPU LOAD</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-circle" style="--primary: #06b6d4; --primary-glow: rgba(6, 182, 212, 0.5)"><div class="stat-inner" id="ram-circle" style="color:#06b6d4">0%</div></div>
+                <div class="stat-label">MEMORY</div>
+            </div>
+        </div>
+        
+        <div class="card" style="margin-top:24px">
+            <div class="card-header">
+                <span class="card-title">Remote Eye</span>
+                <div class="toggle-row" style="border:none; padding:0;">
+                    <span style="font-size:12px; font-weight:600; color:var(--text-muted);">LIVE MODE</span>
+                    <label class="switch" style="transform:scale(0.8)">
+                        <input type="checkbox" id="live-toggle" onchange="toggleLive(this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="screen-preview" id="screen-container">
+                <div class="live-badge" id="live-badge">● LIVE</div>
+                <div class="screen-overlay" id="ss-overlay" onclick="shoot()">
+                    <div style="font-size:24px;">📷</div>
+                    TAP TO CAPTURE
+                </div>
+                <!-- Image source changes dynamically -->
+                <img id="ss-img">
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span class="card-title">System Control</span></div>
+            <div class="grid-2">
+                <button class="btn btn-ghost" onclick="doAction('restart')">↻ Reboot</button>
+                <button class="btn btn-danger" onclick="doAction('shutdown')">⏻ Shutdown</button>
+            </div>
+            <div class="grid-2" style="margin-top:10px">
+                <button class="btn btn-ghost" onclick="post('/api/power', {action:'lock'})">🔒 Lock PC</button>
+                <button class="btn btn-ghost" onclick="doPower('sleep')">😴 Sleep</button>
+            </div>
+            <div style="margin-top: 15px; padding-top:15px; border-top:1px solid var(--border)">
+                <input type="text" id="cmd-input" placeholder="CMD Command (e.g., calc)" style="margin-bottom:10px">
+                <button class="btn btn-ghost" onclick="runCmd()" style="height: 50px;">▶ Run Command</button>
+                <div id="cmd-out" style="font-family:monospace; font-size:12px; color:var(--text-muted); margin-top:10px; max-height:80px; overflow:auto; background:rgba(0,0,0,0.2); padding:10px; border-radius:10px; min-height:40px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INPUT TAB -->
+    <div id="input" class="tab-content">
+        <div class="card">
+            <div class="card-header"><span class="card-title">Input Device</span></div>
+            <div class="trackpad" id="pad"></div>
+            <div class="grid-2" style="margin-top: 20px;">
+                <button class="btn btn-ghost" onclick="post('/api/mouse_click', {btn:'left'})">Left Click</button>
+                <button class="btn btn-ghost" onclick="post('/api/mouse_click', {btn:'right'})">Right Click</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span class="card-title">Media & Volume</span></div>
+            <input type="text" id="ghost" placeholder="Type here to ghost type..." style="margin-bottom:10px">
+            <button class="btn btn-primary" onclick="post('/api/ghost_type', {text:document.getElementById('ghost').value})">Inject Text</button>
+            
+            <div style="height:20px"></div>
+            <input type="text" id="tts-input" placeholder="Text to speak..." style="margin-bottom:10px">
+            <button class="btn btn-ghost" onclick="post('/api/speak', {text:document.getElementById('tts-input').value})">🔊 Speak Text</button>
+            
+            <div style="height:20px"></div>
+            <div class="card-title" style="margin-bottom:10px">MEDIA CONTROLS</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                <button class="btn btn-ghost" onclick="post('/api/media', {action:'prev'})">⏮</button>
+                <button class="btn btn-primary" onclick="post('/api/media', {action:'playpause'})">⏯</button>
+                <button class="btn btn-ghost" onclick="post('/api/media', {action:'next'})">⏭</button>
+            </div>
+            
+            <div style="height:15px"></div>
+            <div class="card-title" style="margin-bottom:10px">VOLUME</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+                <button class="btn btn-ghost" onclick="post('/api/volume', {action:'down'})">🔉 -</button>
+                <button class="btn btn-danger" onclick="post('/api/volume', {action:'mute'})">🔇</button>
+                <button class="btn btn-ghost" onclick="post('/api/volume', {action:'up'})">🔊 +</button>
+            </div>
+            
+            <div style="height:20px"></div>
+            <div class="card-title" style="margin-bottom:10px">HOTKEYS</div>
+            <div class="grid-2">
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'alt_tab'})">Alt+Tab</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'win_d'})">Show Desktop</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'alt_f4'})">Close Window</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'escape'})">Escape</button>
+            </div>
+            
+            <div style="height:15px"></div>
+            <input type="text" id="url-input" placeholder="https://google.com" style="margin-bottom:5px">
+            <button class="btn btn-ghost" onclick="openUrl()">🌐 Open Website</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span class="card-title">Clipboard Sync</span></div>
+            <div class="clip-box" id="pc-clip">Waiting...</div>
+            <div class="grid-2">
+                <button class="btn btn-ghost" onclick="getClip()">Pull</button>
+                <button class="btn btn-primary" id="btn-copy-mobile" onclick="copyToClip()" style="display:none;">Copy to Device</button>
+            </div>
+            <div style="height:20px"></div>
+            <input type="text" id="send-clip" placeholder="Text to push to PC">
+            <button class="btn btn-primary" onclick="sendClip()">Push to PC</button>
+        </div>
+    </div>
+
+    <!-- PRANK TAB -->
+    <div id="prank" class="tab-content">
+        <!-- Screen Effects -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🖥️ Screen Effects</span></div>
+            <div class="toggle-row">
+                <span class="toggle-label">Hacker Typer</span>
+                <label class="switch"><input type="checkbox" id="chk-hacker" onchange="togglePrank('hacker', this)"><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row">
+                <span class="toggle-label">Matrix Rain</span>
+                <label class="switch"><input type="checkbox" id="chk-matrix" onchange="toggleMatrixRain(this)"><span class="slider"></span></label>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:8px; margin-bottom:8px;">
+                <select id="matrix-color" class="speed-select" style="flex:1;">
+                    <option value="green" selected>Green</option>
+                    <option value="blue">Blue</option>
+                    <option value="red">Red</option>
+                    <option value="purple">Purple</option>
+                    <option value="cyan">Cyan</option>
+                    <option value="yellow">Yellow</option>
+                    <option value="pink">Pink</option>
+                    <option value="rainbow">Rainbow</option>
+                    <option value="multi">Multi-Color</option>
+                </select>
+                <select id="matrix-length" class="speed-select" style="flex:1;">
+                    <option value="short">Short</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="long">Long</option>
+                </select>
+            </div>
+            <div class="toggle-row">
+                <span class="toggle-label">Blue Screen (BSOD)</span>
+                <label class="switch"><input type="checkbox" id="chk-bsod" onchange="togglePrank('bsod', this)"><span class="slider"></span></label>
+            </div>
+            <select id="speed-screen" class="speed-select" style="margin-top:10px"><option value="LAGGY">Laggy</option><option value="NORMAL">Normal</option><option value="FAST" selected>Fast</option><option value="INSANE">Insane</option></select>
+        </div>
+
+        <!-- Mouse Pranks -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🖱️ Mouse Pranks</span></div>
+            <div class="toggle-row">
+                <span class="toggle-label">Crazy Mouse</span>
+                <label class="switch"><input type="checkbox" id="chk-crazy-mouse" onchange="togglePrank('crazy_mouse', this)"><span class="slider"></span></label>
+            </div>
+            <div class="toggle-row" style="border:none; padding-bottom:0;">
+                <span class="toggle-label">Block Physical Mouse</span>
+                <label class="switch"><input type="checkbox" id="chk-block-mouse" onchange="toggleInputBlock('mouse', this)"><span class="slider"></span></label>
+            </div>
+            <div style="height:15px"></div>
+            <button class="btn btn-ghost" onclick="post('/api/prank', {action:'jiggle'})">✨ Mouse Jiggle (One-shot)</button>
+        </div>
+
+        <!-- Keyboard Lock -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">⌨️ Input Lock</span></div>
+            <div class="toggle-row" style="border:none;">
+                <span class="toggle-label">Block Physical Keyboard</span>
+                <label class="switch"><input type="checkbox" id="chk-block-keyboard" onchange="toggleInputBlock('keyboard', this)"><span class="slider"></span></label>
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:10px;">⚠️ Safety: Ctrl+Alt+Del always works</div>
+        </div>
+
+        <!-- Audio Pranks -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🔊 Audio Pranks</span></div>
+            <div class="toggle-row">
+                <span class="toggle-label">Random Sounds</span>
+                <label class="switch"><input type="checkbox" id="chk-random-sounds" onchange="togglePrank('random_sounds', this)"><span class="slider"></span></label>
+            </div>
+            <div class="grid-2" style="margin-top:15px;">
+                <button class="btn btn-ghost" onclick="post('/api/sound', {type:'beep', freq:1000, duration:500})">🔔 Beep</button>
+                <button class="btn btn-ghost" onclick="post('/api/sound', {type:'system', name:'SystemExclamation'})">⚠️ Alert</button>
+            </div>
+        </div>
+
+
+        <!-- Scary Popup -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">💀 Scary Pranks</span></div>
+            <button class="btn btn-danger" onclick="post('/api/prank', {action:'scary'})">😱 Scary Popup</button>
+            <div style="height:15px"></div>
+            <textarea id="note" rows="2" placeholder="Custom popup message..." style="width:100%;background:var(--surface-light);border:1px solid var(--border);color:white;border-radius:16px;padding:10px;font-family:sans-serif;margin-bottom:10px;"></textarea>
+            <button class="btn btn-ghost" onclick="post('/api/note_popup', {text:document.getElementById('note').value})">📝 Deploy Custom Popup</button>
+        </div>
+        
+        <!-- Matrix Image -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🖼️ Matrix Image</span></div>
+            
+            <!-- Upload zone (shown when no image) -->
+            <div id="matrix-upload-zone" onclick="document.getElementById('matrix-img-input').click()" style="border: 2px dashed var(--border); padding: 30px 15px; text-align:center; border-radius:16px; cursor:pointer; color:var(--text-muted); transition:all 0.3s; background: rgba(139,92,246,0.02);">
+                <div style="font-size:36px; margin-bottom:10px;">🖼️</div>
+                <div style="font-size:14px; font-weight:600; color:var(--text-main);">Tap to select image</div>
+                <div style="font-size:11px; margin-top:5px;">Image will convert to Matrix ASCII art</div>
+            </div>
+            <input type="file" id="matrix-img-input" accept="image/*" style="display:none" onchange="handleMatrixUpload()">
+            
+            <!-- Controls (shown after upload) -->
+            <div id="matrix-controls" style="display:none;">
+                <div style="display:flex; align-items:center; gap:12px; background:rgba(139,92,246,0.1); padding:12px 16px; border-radius:12px; margin-bottom:12px;">
+                    <span style="font-size:24px;">✅</span>
+                    <div style="flex:1;">
+                        <div id="matrix-filename" style="font-size:13px; color:var(--text-main); font-weight:600;">image.jpg</div>
+                        <div style="font-size:11px; color:var(--text-muted);">Ready to display</div>
+                    </div>
+                </div>
+                <div class="toggle-row">
+                    <span class="toggle-label">Show on PC</span>
+                    <label class="switch"><input type="checkbox" id="chk-matrix-display" onchange="toggleMatrixDisplay(this)"><span class="slider"></span></label>
+                </div>
+                <button class="btn btn-ghost" style="margin-top:12px; width:100%;" onclick="replaceMatrixImage()">🔄 Replace Image</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILES TAB -->
+    <div id="files" class="tab-content">
+        <!-- Upload Section -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">☁️ Upload to PC</span>
+            </div>
+            <div id="drop-zone" style="border: 2px dashed var(--border); padding: 40px 20px; text-align:center; border-radius:20px; cursor:pointer; margin-bottom:15px; color:var(--text-muted); transition:all 0.3s; background: rgba(139,92,246,0.02);" onclick="document.getElementById('file-inp').click()">
+                <div style="font-size:48px; margin-bottom:15px; opacity:0.8;">📁</div>
+                <div style="font-size:16px; font-weight:600; color:var(--text-main); margin-bottom:5px;">Tap to select file</div>
+                <div style="font-size:12px;">or drag and drop</div>
+            </div>
+            <input type="file" id="file-inp" style="display:none" onchange="fileSelected()">
+            
+            <!-- Selected file info -->
+            <div id="upload-area" style="display:none; background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(6,182,212,0.1) 100%); padding:20px; border-radius:16px; margin-bottom:10px; border:1px solid var(--border);">
+                <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
+                    <div style="font-size:32px;">📄</div>
+                    <div style="flex:1;">
+                        <div id="file-name" style="color:white; font-weight:bold; font-size:14px; word-break:break-all;">...</div>
+                        <div id="file-size" style="color:var(--text-muted); font-size:12px;"></div>
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="uploadFile()" style="width:100%;">🚀 Upload Now</button>
+            </div>
+            
+            <!-- Progress bar -->
+            <div class="progress-container" id="progress-container" style="display:none; background:var(--surface-light); padding:20px; border-radius:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span id="upload-status" style="font-size:14px; color:var(--text-main); font-weight:600;">Uploading...</span>
+                    <span id="progress-percent" style="font-size:14px; color:var(--primary); font-weight:bold;">0%</span>
+                </div>
+                <div class="progress-bg" style="margin-bottom:12px;"><div class="progress-fill" id="progress-fill"></div></div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; text-align:center;">
+                    <div style="background:rgba(139,92,246,0.1); padding:10px; border-radius:8px;">
+                        <div id="upload-speed" style="font-size:16px; font-weight:bold; color:var(--primary);">0 KB/s</div>
+                        <div style="font-size:10px; color:var(--text-muted);">SPEED</div>
+                    </div>
+                    <div style="background:rgba(6,182,212,0.1); padding:10px; border-radius:8px;">
+                        <div id="upload-transferred" style="font-size:16px; font-weight:bold; color:var(--accent);">0 MB</div>
+                        <div style="font-size:10px; color:var(--text-muted);">UPLOADED</div>
+                    </div>
+                    <div style="background:rgba(34,197,94,0.1); padding:10px; border-radius:8px;">
+                        <div id="upload-eta" style="font-size:16px; font-weight:bold; color:#22c55e;">--:--</div>
+                        <div style="font-size:10px; color:var(--text-muted);">ETA</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Downloads Folder -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">📥 PC Downloads Folder</span>
+                <button class="btn btn-ghost" style="padding:8px 12px; font-size:12px;" onclick="listFiles()">🔄 Refresh</button>
+            </div>
+            <div id="flist" style="max-height:400px; overflow-y:auto;">
+                <div style="text-align:center; padding:30px; color:var(--text-muted);">
+                    <div style="font-size:32px; margin-bottom:10px;">📂</div>
+                    <div>Tap Refresh to load files</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- SETTINGS TAB -->
+    <div id="settings" class="tab-content">
+        <!-- Theme & Style Selector Card -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🎨 Visual Style & Theme</span>
+                <span id="theme-active-tag" style="font-size:11px; padding:3px 10px; border-radius:12px; background:var(--primary); color:white; font-weight:700;">Glass UI (Dark)</span>
+            </div>
+            
+            <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px; font-weight:600;">SELECT DESIGN SYSTEM</div>
+            <div class="theme-grid">
+                <div class="theme-card-option" onclick="changeThemeStyle('glass')" id="theme-opt-glass">
+                    <div class="theme-card-icon">🔮</div>
+                    <div class="theme-card-name">Glass UI</div>
+                </div>
+                <div class="theme-card-option" onclick="changeThemeStyle('neumorphic')" id="theme-opt-neumorphic">
+                    <div class="theme-card-icon">⚪</div>
+                    <div class="theme-card-name">Neumorphism</div>
+                </div>
+                <div class="theme-card-option" onclick="changeThemeStyle('clay')" id="theme-opt-clay">
+                    <div class="theme-card-icon">🧸</div>
+                    <div class="theme-card-name">Claymorphic</div>
+                </div>
+                <div class="theme-card-option" onclick="changeThemeStyle('dimensional')" id="theme-opt-dimensional">
+                    <div class="theme-card-icon">📐</div>
+                    <div class="theme-card-name">Dimensional</div>
+                </div>
+                <div class="theme-card-option" onclick="changeThemeStyle('hacker')" id="theme-opt-hacker">
+                    <div class="theme-card-icon">💻</div>
+                    <div class="theme-card-name">Hacker UI</div>
+                </div>
+            </div>
+
+            <div class="mode-toggle-group">
+                <button class="mode-btn" id="mode-btn-dark" onclick="changeThemeMode('dark')">🌙 Dark Mode</button>
+                <button class="mode-btn" id="mode-btn-light" onclick="changeThemeMode('light')">☀️ Light Mode</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span class="card-title">System Info</span></div>
+            <div id="sysinfo-container" style="font-family:monospace; font-size:13px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+                    <div style="background:rgba(139,92,246,0.1); padding:15px; border-radius:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:bold; color:var(--primary);" id="sys-cpu-cores">-</div>
+                        <div style="font-size:11px; color:var(--text-muted);">CPU CORES</div>
+                    </div>
+                    <div style="background:rgba(6,182,212,0.1); padding:15px; border-radius:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:bold; color:var(--accent);" id="sys-ram">-</div>
+                        <div style="font-size:11px; color:var(--text-muted);">RAM (GB)</div>
+                    </div>
+                    <div style="background:rgba(244,63,94,0.1); padding:15px; border-radius:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:bold; color:var(--danger);" id="sys-disk">-</div>
+                        <div style="font-size:11px; color:var(--text-muted);">DISK (GB)</div>
+                    </div>
+                    <div style="background:rgba(34,197,94,0.1); padding:15px; border-radius:12px; text-align:center;">
+                        <div style="font-size:20px; font-weight:bold; color:#22c55e;" id="sys-uptime">-</div>
+                        <div style="font-size:11px; color:var(--text-muted);">UPTIME</div>
+                    </div>
+                </div>
+                <button class="btn btn-ghost" onclick="loadSysInfo()">🔄 Refresh</button>
+            </div>
+        </div>
+        
+        <!-- Updates -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🔄 Updates</span></div>
+            <div style="display:flex; align-items:center; gap:12px; background:rgba(139,92,246,0.1); padding:12px 16px; border-radius:12px; margin-bottom:12px;">
+                <span style="font-size:24px;">📦</span>
+                <div style="flex:1;">
+                    <div style="font-size:13px; color:var(--text-main); font-weight:600;">Current Version</div>
+                    <div id="current-version" style="font-size:18px; color:var(--primary); font-weight:bold;">{{ version }}</div>
+                </div>
+            </div>
+            <div id="update-status" style="display:none; background:rgba(34,197,94,0.1); padding:12px 16px; border-radius:12px; margin-bottom:12px; border:1px solid rgba(34,197,94,0.3);">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:20px;">✨</span>
+                    <div style="flex:1;">
+                        <div style="font-size:13px; color:#22c55e; font-weight:600;">New Version Available!</div>
+                        <div id="new-version" style="font-size:16px; color:white; font-weight:bold;"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="update-checking" style="display:none; text-align:center; padding:10px; color:var(--text-muted);">
+                <span style="display:inline-block; animation: spin 1s linear infinite;">⏳</span> Checking for updates...
+            </div>
+            <div id="update-uptodate" style="display:none; text-align:center; padding:10px; color:#22c55e;">
+                ✅ You're up to date!
+            </div>
+            <button class="btn btn-ghost" id="btn-check-update" onclick="checkForUpdates()" style="width:100%; margin-bottom:8px;">🔍 Check for Updates</button>
+            <button class="btn btn-primary" id="btn-restart" onclick="restartController()" style="width:100%; display:none;">🔄 Restart with New Version</button>
+        </div>
+        
+        <div class="card">
+            <div class="card-header"><span class="card-title">Quick Actions</span></div>
+            <div class="grid-2">
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'win_e'})">📁 File Explorer</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'ctrl_shift_esc'})">📊 Task Manager</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'print_screen'})">📸 Print Screen</button>
+                <button class="btn btn-ghost" onclick="post('/api/hotkey', {action:'win_l'})">🔐 Lock Screen</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header"><span class="card-title">About</span></div>
+            <div style="text-align:center; padding:10px;">
+                <div style="font-size:40px; margin-bottom:10px;">🖥️</div>
+                <div style="font-size:18px; font-weight:bold; margin-bottom:5px;">PC Controller 2.0</div>
+                <div style="font-size:13px; color:var(--text-muted);" id="app-version">v{{ version }}</div>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:10px;">Auto-updates every 5 minutes</div>
+            </div>
+            <button class="btn btn-primary" onclick="checkForUpdate()" style="margin-top:15px;">🔄 Check for Updates</button>
+        </div>
+        </div>
+    </div>
+    
+    <!-- APPS TAB (NEW v2.4.0) -->
+    <div id="apps" class="tab-content">
+        
+        <!-- Voice Command -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🎤 Voice Command</span></div>
+            <div style="text-align:center; padding:15px;">
+                <select id="voice-lang" style="width:100%; margin-bottom:15px;">
+                    <option value="en-US">🇺🇸 English</option>
+                    <option value="bn-BD">🇧🇩 বাংলা (Bangla)</option>
+                </select>
+                <button class="btn btn-primary" id="voice-btn" onclick="startVoice()" style="padding:25px; font-size:24px;">🎤</button>
+                <div id="voice-status" style="margin-top:15px; color:var(--text-muted); font-size:13px;">Tap mic and speak</div>
+                <div id="voice-result" style="margin-top:10px; color:var(--primary); font-weight:600;"></div>
+            </div>
+        </div>
+        
+        <!-- App Launcher -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">🚀 App Launcher</span></div>
+            <div id="app-grid" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:15px;"></div>
+            <div style="border-top:1px solid var(--border); padding-top:15px; margin-top:10px;">
+                <div style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">Add New App</div>
+                <input type="text" id="app-name" placeholder="App Name" style="margin-bottom:8px;">
+                <input type="text" id="app-path" placeholder="Path (e.g. C:\\Program Files\\...\\app.exe)">
+                <button class="btn btn-ghost" onclick="addNewApp()">➕ Add App</button>
+            </div>
+        </div>
+        
+        <!-- Window Manager -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🪟 Window Manager</span>
+                <button class="btn btn-ghost" onclick="loadWindows()" style="padding:8px 12px; font-size:12px;">🔄</button>
+            </div>
+            <div id="window-list" style="max-height:300px; overflow-y:auto;"></div>
+        </div>
+        
+        <!-- Task Manager -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🔧 Task Manager</span>
+                <button class="btn btn-ghost" onclick="loadProcesses()" style="padding:8px 12px; font-size:12px;">🔄</button>
+            </div>
+            <div id="process-list" style="max-height:300px; overflow-y:auto;"></div>
+        </div>
+        
+        <!-- Scheduled Tasks -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">⏰ Schedule Action</span></div>
+            <select id="sched-action" style="margin-bottom:10px;">
+                <option value="shutdown">🔴 Shutdown</option>
+                <option value="restart">🔄 Restart</option>
+                <option value="sleep">💤 Sleep</option>
+            </select>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:15px;">
+                <button class="btn btn-ghost" onclick="scheduleIn(300)">5 min</button>
+                <button class="btn btn-ghost" onclick="scheduleIn(1800)">30 min</button>
+                <button class="btn btn-ghost" onclick="scheduleIn(3600)">1 hour</button>
+            </div>
+            <div id="active-schedules" style="font-size:12px; color:var(--text-muted);"></div>
+        </div>
+        
+        <!-- File Browser -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">📁 File Browser</span></div>
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <button class="btn btn-ghost" onclick="browseParent()" style="padding:10px;">⬆️ Up</button>
+                <button class="btn btn-ghost" onclick="browseHome()" style="padding:10px; flex:1;">🏠 Home</button>
+            </div>
+            <div id="browse-path" style="font-size:11px; color:var(--text-muted); margin-bottom:10px; word-break:break-all;"></div>
+            <div id="browse-list" style="max-height:300px; overflow-y:auto;"></div>
+        </div>
+        
+        <!-- Live Screen Mirror -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">📺 Live Screen Mirror</span></div>
+            <select id="stream-fps" style="margin-bottom:10px;">
+                <option value="10">10 FPS (Low - Fast)</option>
+                <option value="15">15 FPS (Medium)</option>
+                <option value="30">30 FPS (High - Smooth)</option>
+            </select>
+            <button class="btn btn-primary" id="stream-btn" onclick="toggleScreenMirror()">▶️ Start Mirror</button>
+            <div id="mirror-container" style="display:none; margin-top:15px;">
+                <img id="mirror-img" style="width:100%; border-radius:12px; border:1px solid var(--border);">
+                <button class="btn btn-ghost" onclick="fullscreenMirror()" style="margin-top:10px;">🔲 Fullscreen</button>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<nav class="bottom-nav">
+    <button class="nav-item active" onclick="sw('dash', this, 'Dashboard')">📊 <span>Home</span></button>
+    <button class="nav-item" onclick="sw('input', this, 'Input')">🖱️ <span>Input</span></button>
+    <button class="nav-item" onclick="sw('prank', this, 'Pranks')">🎭 <span>Pranks</span></button>
+    <button class="nav-item" onclick="sw('files', this, 'Files')">📂 <span>Files</span></button>
+    <button class="nav-item" onclick="sw('apps', this, 'Apps'); loadAppData();">🚀 <span>Apps</span></button>
+    <button class="nav-item" onclick="sw('settings', this, 'Settings'); loadSysInfo();">⚙️ <span>Settings</span></button>
+</nav>
+
+<script src="/static/js/socket.io.min.js"></script>
+<script src="/static/js/app.js?v={{ version }}"></script>
+</body>
+</html>

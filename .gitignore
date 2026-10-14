@@ -24,5 +24,6 @@ cloudflared.exe
 Thumbs.db
 .DS_Store
 
-# Logs
+# Logs and Backups
 *.log
+*.bak

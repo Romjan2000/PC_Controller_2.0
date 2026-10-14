@@ -1,8 +1,8 @@
-# 🖥️ PC Controller 2.0
+# 🖥️ PC Controller 2.5
 
-Control your Windows PC remotely from any device! Access your computer from your phone, tablet, or another computer via a sleek web interface.
+Control your Windows PC remotely from any device! Access your computer from your phone, tablet, or another computer via a modern, responsive web interface.
 
-![PC Controller](https://img.shields.io/badge/Platform-Windows-blue?style=flat-square) ![Python](https://img.shields.io/badge/Python-3.8+-green?style=flat-square) ![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
+![PC Controller](https://img.shields.io/badge/Platform-Windows-blue?style=flat-square) ![Python](https://img.shields.io/badge/Python-3.8+-green?style=flat-square) ![Version](https://img.shields.io/badge/Version-2.5.0-orange?style=flat-square) ![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
 
 ---
 
@@ -15,15 +15,25 @@ irm https://raw.githubusercontent.com/Romjan2000/PC_Controller_2.0/main/install.
 ```
 
 This will automatically:
-- ✅ Download PC Controller
+- ✅ Download PC Controller v2.5
 - ✅ Set up Python virtual environment
-- ✅ Install all dependencies
-- ✅ Download Cloudflare Tunnel
+- ✅ Auto-install all dependencies (Flask, SocketIO, Eventlet, etc.)
+- ✅ Auto-download Cloudflare Tunnel (`cloudflared.exe`)
 - ✅ Guide you through configuration
 - ✅ Create desktop shortcut (optional)
-- ✅ Add to Windows startup (optional)
+- ✅ Add to Windows startup with **silent zero-popup** execution (optional)
 
-**The only manual step**: Create a Telegram bot for notifications (optional but recommended).
+---
+
+## 🎨 5 Premium UI Themes (Light & Dark Modes)
+
+PC Controller 2.5 features a comprehensive UI overhaul with 5 distinct design systems, each supporting both Light and Dark themes (10 visual combinations):
+
+- 🔮 **Glass UI**: Frosted-glass backdrop-filter blur, subtle light borders, and glowing accents.
+- ⚪ **Neumorphism**: Soft extruded and inset shadows creating a tactile, physical surface.
+- 🎈 **Claymorphism**: Playful, puffy 3D elements with pillowy inner shadows and rounded curves.
+- 📐 **Dimensional**: High-contrast brutalist depth with crisp solid borders and offset box-shadows.
+- 💻 **Hacker UI**: Cyberpunk CRT matrix terminal aesthetic with scanlines and monospace typography.
 
 ---
 
@@ -31,16 +41,20 @@ This will automatically:
 
 | Feature | Description |
 |---------|-------------|
-| 📷 **Live Screen** | Real-time screen streaming with MJPEG |
-| 🖱️ **Remote Mouse** | Touch trackpad for mouse control |
+| 🎨 **10 Theme Modes** | Glass UI, Neumorphism, Claymorphic, Dimensional, Hacker UI (Light & Dark) |
+| ⚡ **Low-Latency Socket.IO** | Smooth WebSocket remote mouse trackpad & ghost typing |
+| 🔕 **Silent Windows Startup** | Zero console flash / zero popup reboot persistence via VBScript |
+| 📱 **PWA Ready** | Add to Home Screen on iOS / Android with standalone app experience |
+| 📷 **Live Screen** | Real-time screen streaming with MJPEG and low latency |
+| 🖱️ **Remote Mouse** | Touchpad trackpad, mouse clicks, and scrolling |
 | ⌨️ **Ghost Typing** | Type text remotely on the target PC |
-| 🔊 **Text-to-Speech** | Make your PC speak any text |
-| 📁 **File Transfer** | Upload/download files to Downloads folder |
-| 📋 **Clipboard Sync** | Share clipboard between devices |
-| 🎭 **Pranks** | Hacker typer, Matrix rain, BSOD, and more |
-| 📊 **System Stats** | Live CPU and RAM monitoring |
-| ⚡ **System Control** | Shutdown, restart, run commands |
-| 🔄 **Auto-Update** | Automatically updates every 5 minutes |
+| 🔊 **Text-to-Speech** | Make your PC speak any text aloud |
+| 📁 **File Transfer** | Upload/download files safely to Downloads folder |
+| 📋 **Clipboard Sync** | Instant bidirectional clipboard sync |
+| 🎭 **Pranks** | Hacker typer, Matrix rain, Fake BSOD, and more |
+| 📊 **System Stats** | Live CPU, RAM, and disk monitoring |
+| ⚡ **System Control** | Shutdown, restart, lock, and launch custom commands |
+| 🔄 **Auto-Update & Self-Healing** | Automatic Cloudflare Tunnel installer and update checks |
 
 ---
 
